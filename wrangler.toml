@@ -1,8 +1,10 @@
 name = "my-wallet"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
+main = ".open-next/worker.js"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "wallet-db"
 database_id = "d9451a5c-0f3e-48af-91ca-515adefdbf0e"
+migrations_dir = "prisma/migrations"

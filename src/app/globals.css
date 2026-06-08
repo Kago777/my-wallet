@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700&display=swap');
+@import "tailwindcss";
+:root {
+  --navy-950: #0A0F1E;
+  --navy-900: #0F172A;
+  --navy-800: #1E293B;
+  --navy-700: #253347;
+  --navy-600: #334155;
+  --emerald-500: #10B981;
+  --emerald-400: #34D399;
+  --emerald-300: #6EE7B7;
+  --red-400: #F87171;
+  --blue-400: #60A5FA;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+}
+
+body {
+  background-color: var(--navy-900);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-display {
+  font-family: 'Syne', sans-serif;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}

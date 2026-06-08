@@ -24,14 +24,16 @@ export default function DashboardChart({
           cy="50%"
           outerRadius={100}
           label={({ name, percent }) =>
-            `${name} ${(percent * 100).toFixed(0)}%`
+            `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
           }
         >
           {data.map((_, index) => (
             <Cell key={index} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(value: number) => `¥${value.toLocaleString()}`} />
+        <Tooltip formatter={(value) => 
+          [`¥${Number(value ?? 0).toLocaleString()}`, "金額"]
+        } />
         <Legend />
       </PieChart>
     </ResponsiveContainer>

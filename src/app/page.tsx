@@ -4,7 +4,7 @@ import DashboardChart from "@/components/DashboardChart";
 import MonthlyChart from "@/components/MonthlyChart";
 import { getSessionUser } from "@/auth.server";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown } from "lucide-react";
 
 export default async function Home({
   searchParams,
@@ -205,9 +205,12 @@ const monthlyData = await Promise.all(
                       {new Date(t.date).toLocaleDateString("ja-JP")}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold"
+                  <span className="flex items-center gap-1 text-sm font-semibold"
                     style={{ color: t.type === "income" ? "var(--emerald-400)" : "var(--red-400)" }}>
-                    {t.type === "income" ? "+" : "-"}¥{t.amount.toLocaleString()}
+                      {t.type === "income"
+                        ? <TrendingUp size={14} />
+                        : <TrendingDown size={14} />
+                      }¥{t.amount.toLocaleString()}
                   </span>
                 </li>
               ))}

@@ -9,20 +9,6 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload"
   },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/dotenv": "^8.2.3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "dotenv": "^17.4.2",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "tsx": "^4.21.0",
-    "typescript": "^5"
-  },
   "dependencies": {
     "@libsql/client": "^0.17.3",
     "@next/font": "^14.2.15",
@@ -38,5 +24,19 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/dotenv": "^8.2.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
   }
 }

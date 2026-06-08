@@ -50,9 +50,6 @@ importers:
       recharts:
         specifier: ^3.8.1
         version: 3.8.1(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react-is@16.13.1)(react@19.2.4)(redux@5.0.1)
-      wrangler:
-        specifier: ^4.98.0
-        version: 4.98.0
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4
@@ -90,6 +87,9 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
+      wrangler:
+        specifier: ^4.98.0
+        version: 4.98.0
 
 packages:
 

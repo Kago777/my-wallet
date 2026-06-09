@@ -83,9 +83,14 @@ pnpm dev
 
 ### Dockerでの起動
 
+`.env.example` をコピーして `.env.local` を作成し、`AUTH_SECRET`・`AUTH_GOOGLE_ID`・`AUTH_GOOGLE_SECRET` を設定してください。`DATABASE_URL` は `docker-compose.yml` で PostgreSQL サービス向けに上書きされます。
+
 ```bash
-docker compose up -d
+cp .env.example .env.local
+docker compose up -d --build
 ```
+
+アプリは [http://localhost:3000](http://localhost:3000) で起動します。
 
 ---
 

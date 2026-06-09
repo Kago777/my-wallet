@@ -2,9 +2,9 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const adapter = new PrismaPg({
-  url: process.env.DATABASE_URL ?? "postgresql://dummy:dummy@localhost:5432/dummy",
-});
+const adapter = new PrismaPg(
+  process.env.DATABASE_URL ?? "postgresql://dummy:dummy@localhost:5432/dummy"
+);
 
 const prisma = new PrismaClient({ adapter });
 

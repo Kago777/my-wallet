@@ -11,6 +11,7 @@
 | カテゴリ | 技術 |
 |----------|------|
 | フレームワーク | Next.js 16.2.7（App Router） |
+| UIライブラリ | React 19 |
 | 言語 | TypeScript |
 | 認証 | NextAuth.js v5 beta（Google OAuth） |
 | ORM | Prisma 7 |
@@ -34,7 +35,7 @@
 Cloudflare（DNS・CDN・DDoS保護）
   ↓
 Railway（Dockerコンテナ）
-  ├── Next.js App（ポート8080）
+  ├── Next.js App（ポート3000 ※Railwayが PORT を注入する場合あり）
   │   ├── App Router（Server Components）
   │   ├── Server Actions
   │   └── NextAuth.js（Google OAuth）
@@ -71,17 +72,26 @@ pnpm install
 cp .env.example .env.local
 # .env.local を編集して各値を設定
 
+# PostgreSQL の起動（Docker）
+docker compose up -d db
+
+# .env.local の DATABASE_URL を Docker の DB に合わせる
+# DATABASE_URL=postgresql://wallet:wallet@localhost:5432/my_wallet
+
 # Prismaクライアントの生成
 pnpm exec prisma generate
 
-# DBのセットアップ
-pnpm exec prisma db push
+# DBのセットアップ（マイグレーション適用 + シード）
+pnpm db:migrate
+pnpm db:seed
 
 # 開発サーバーの起動
 pnpm dev
 ```
 
-### Dockerでの起動
+[http://localhost:3000](http://localhost:3000) でアクセスできます。
+
+### Dockerでの起動（DB + アプリ）
 
 `.env.example` をコピーして `.env.local` を作成し、`AUTH_SECRET`・`AUTH_GOOGLE_ID`・`AUTH_GOOGLE_SECRET` を設定してください。`DATABASE_URL` は `docker-compose.yml` で PostgreSQL サービス向けに上書きされます。
 
@@ -91,6 +101,19 @@ docker compose up -d --build
 ```
 
 アプリは [http://localhost:3000](http://localhost:3000) で起動します。
+
+---
+
+## 利用可能なスクリプト
+
+| コマンド | 説明 |
+|---------|------|
+| `pnpm dev` | 開発サーバー起動 |
+| `pnpm build` | 本番ビルド（Prisma 生成 + Next.js ビルド） |
+| `pnpm start` | 本番サーバー起動 |
+| `pnpm lint` | ESLint 実行 |
+| `pnpm db:migrate` | マイグレーション適用（`prisma migrate deploy`） |
+| `pnpm db:seed` | デフォルトカテゴリの投入 |
 
 ---
 
@@ -136,21 +159,21 @@ prisma migrate deploy → db:seed → next start
 | 変数名 | 説明 | 必須 |
 |--------|------|------|
 | `DATABASE_URL` | PostgreSQL接続URL | ✅ |
-| `AUTH_SECRET` | NextAuth.js署名シークレット | ✅ |
+| `AUTH_SECRET` | NextAuth.js署名シークレット（`openssl rand -base64 32`） | ✅ |
 | `AUTH_GOOGLE_ID` | Google OAuth クライアントID | ✅ |
 | `AUTH_GOOGLE_SECRET` | Google OAuth クライアントシークレット | ✅ |
-| `NEXTAUTH_URL` | アプリのベースURL | ✅ |
-| `NODE_ENV` | 実行環境（production） | ✅ |
+
+> `NEXTAUTH_URL` / `NODE_ENV` はコード内で参照していません。NextAuth v5 は `trustHost: true` によりホストを自動判定し、`NODE_ENV` は Next.js / Node が自動設定します。
 
 ### .env.local の例
 
+`.env.example` と同じ内容です。
+
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/mywallet
+DATABASE_URL=postgresql://wallet:wallet@localhost:5432/my_wallet
 AUTH_SECRET=your_secret_here
 AUTH_GOOGLE_ID=your_google_client_id
 AUTH_GOOGLE_SECRET=your_google_client_secret
-NEXTAUTH_URL=http://localhost:3000
-NODE_ENV=development
 ```
 
 ### Google OAuth設定

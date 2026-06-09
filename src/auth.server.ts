@@ -1,22 +1,10 @@
 /**
  * [認証] サーバー専用認証ヘルパー - Node.js のみ
- *
- * 役割：セッション情報からDBのユーザー情報を取得する
- * 実行環境：Node.js のみ（server-only）
- * 重要：middleware.tsからは絶対にインポートしない
- *
- * 処理フロー：
- * 1. auth()でGoogleセッションを取得
- * 2. セッションのメールアドレスでDBを検索
- * 3. DBにユーザーが存在しない場合は新規作成
- * 4. DBのユーザー情報を返す
- *
- * 使用箇所：各ページ（page.tsx）でユーザーIDを取得するとき
- * 依存：src/auth.ts, src/lib/prisma.ts
  */
 import "server-only";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 export async function getSessionUser() {
   const session = await auth();
@@ -36,4 +24,10 @@ export async function getSessionUser() {
   }
 
   return dbUser;
+}
+
+export async function requireAuth() {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  return user;
 }

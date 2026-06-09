@@ -1,41 +1,31 @@
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/auth.server";
-import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { requireAuth } from "@/auth.server";
 import { createBudget, deleteBudget } from "@/app/actions/budget";
+import { getCategoriesForUser, getWalletsForUser } from "@/lib/queries";
+import { getMonthRange } from "@/lib/date";
 
 export default async function BudgetsPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
+  const user = await requireAuth();
   const currentMonth = new Date().toISOString().slice(0, 7);
+  const { start, end } = getMonthRange(currentMonth);
 
-  const budgets = await prisma.budget.findMany({
-    where: { wallet: { userId: user.id }, month: currentMonth },
-    include: { category: true, wallet: true },
-  });
-
-  const categories = await prisma.category.findMany({
-    where: { OR: [{ isDefault: true }, { userId: user.id }] },
-  });
-
-  const wallets = await prisma.wallet.findMany({
-    where: { userId: user.id },
-  });
-
-  const actuals = await prisma.transaction.groupBy({
-    by: ["categoryId"],
-    where: {
-      wallet: { userId: user.id },
-      type: "expense",
-      date: {
-        gte: new Date(`${currentMonth}-01`),
-        lt: new Date(new Date(`${currentMonth}-01`).setMonth(
-          new Date(`${currentMonth}-01`).getMonth() + 1
-        )),
+  const [budgets, categories, wallets, actuals] = await Promise.all([
+    prisma.budget.findMany({
+      where: { wallet: { userId: user.id }, month: currentMonth },
+      include: { category: true, wallet: true },
+    }),
+    getCategoriesForUser(user.id),
+    getWalletsForUser(user.id),
+    prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        wallet: { userId: user.id },
+        type: "expense",
+        date: { gte: start, lt: end },
       },
-    },
-    _sum: { amount: true },
-  });
+      _sum: { amount: true },
+    }),
+  ]);
 
   return (
     <main className="p-8 max-w-2xl mx-auto">
@@ -44,9 +34,7 @@ export default async function BudgetsPage() {
       </div>
       <p className="text-sm mb-8" style={{ color: "var(--text-muted)" }}>{currentMonth}</p>
 
-      {/* 追加フォーム */}
-      <div className="rounded-xl p-6 mb-8"
-        style={{ background: "var(--navy-800)", border: "1px solid var(--navy-600)" }}>
+      <div className="card p-6 mb-8">
         <h2 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
           予算を設定
         </h2>
@@ -55,26 +43,18 @@ export default async function BudgetsPage() {
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>月</label>
-              <input type="month" name="month"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}
+              <input type="month" name="month" className="input"
                 defaultValue={currentMonth} required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>予算金額</label>
-              <input type="number" name="amount" placeholder="0"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }} required />
+              <input type="number" name="amount" placeholder="0" className="input" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>カテゴリ</label>
-              <select name="categoryId" className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}>
+              <select name="categoryId" className="select">
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -83,24 +63,19 @@ export default async function BudgetsPage() {
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>財布</label>
-              <select name="walletId" className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}>
+              <select name="walletId" className="select">
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
             </div>
           </div>
-          <button type="submit"
-            className="w-full py-3 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--emerald-500)", color: "#fff" }}>
+          <button type="submit" className="btn-primary w-full py-3">
             設定
           </button>
         </form>
       </div>
 
-      {/* 予算一覧 */}
       <div className="space-y-4">
         {budgets.length === 0 ? (
           <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
@@ -113,8 +88,7 @@ export default async function BudgetsPage() {
             const isOver = actual > b.amount;
 
             return (
-              <div key={b.id} className="rounded-xl px-6 py-5"
-                style={{ background: "var(--navy-800)", border: "1px solid var(--navy-600)" }}>
+              <div key={b.id} className="card px-6 py-5">
                 <div className="flex justify-between items-center mb-3">
                   <p className="font-medium">{b.category.name}</p>
                   <div className="flex items-center gap-6">
@@ -129,15 +103,13 @@ export default async function BudgetsPage() {
                     </p>
                     <form action={deleteBudget}>
                       <input type="hidden" name="id" value={b.id} />
-                      <button type="submit" className="text-sm"
-                        style={{ color: "var(--red-400)" }}>
+                      <button type="submit" className="text-sm" style={{ color: "var(--red-400)" }}>
                         削除
                       </button>
                     </form>
                   </div>
                 </div>
-                <div className="w-full rounded-full h-2"
-                  style={{ background: "var(--navy-700)" }}>
+                <div className="w-full rounded-full h-2" style={{ background: "var(--navy-700)" }}>
                   <div className="h-2 rounded-full transition-all"
                     style={{
                       width: `${percent}%`,

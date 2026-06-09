@@ -1,21 +1,14 @@
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/auth.server";
-import { redirect } from "next/navigation";
+import { requireAuth } from "@/auth.server";
 import TransactionForm from "@/components/TransactionForm";
+import { getCategoriesForUser, getWalletsForUser } from "@/lib/queries";
 
 export default async function NewTransactionPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
+  const user = await requireAuth();
 
-  const userId = user.id;
-
-  const categories = await prisma.category.findMany({
-    where: { OR: [{ isDefault: true }, { userId }] },
-  });
-
-  const wallets = await prisma.wallet.findMany({
-    where: { userId },
-  });
+  const [categories, wallets] = await Promise.all([
+    getCategoriesForUser(user.id),
+    getWalletsForUser(user.id),
+  ]);
 
   return (
     <main className="p-8 max-w-lg mx-auto">

@@ -1,9 +1,25 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: wallet
+      POSTGRES_PASSWORD: wallet
+      POSTGRES_DB: my_wallet
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   app:
     build: .
     ports:
       - "3000:3000"
-    volumes:
-      - .:/app
     env_file:
       - .env.local
+    environment:
+      DATABASE_URL: postgresql://wallet:wallet@db:5432/my_wallet
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

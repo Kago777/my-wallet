@@ -1,36 +1,186 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# my-wallet
 
-## Getting Started
+個人向けパーソナル家計簿Webアプリ。収支管理・サブスク管理・予算管理などの機能を備えたフルスタックWebアプリケーション。
 
-First, run the development server:
+🌐 **デモ：** https://wallet.kagotani.me
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 技術スタック
+
+| カテゴリ | 技術 |
+|----------|------|
+| フレームワーク | Next.js 16.2.7（App Router） |
+| UIライブラリ | React 19 |
+| 言語 | TypeScript |
+| 認証 | NextAuth.js v5 beta（Google OAuth） |
+| ORM | Prisma 7 |
+| DB | PostgreSQL（Railway） |
+| DBアダプター | @prisma/adapter-pg |
+| スタイリング | Tailwind CSS v4 |
+| UIコンポーネント | Lucide React |
+| グラフ | Recharts |
+| パッケージマネージャー | pnpm |
+| コンテナ | Docker |
+| ホスティング | Railway |
+| DNS / CDN | Cloudflare |
+
+---
+
+## アーキテクチャ
+
+```
+ユーザー
+  ↓
+Cloudflare（DNS・CDN・DDoS保護）
+  ↓
+Railway（Dockerコンテナ）
+  ├── Next.js App（ポート3000 ※Railwayが PORT を注入する場合あり）
+  │   ├── App Router（Server Components）
+  │   ├── Server Actions
+  │   └── NextAuth.js（Google OAuth）
+  └── PostgreSQL（Railway managed DB）
+       └── Prisma ORM（@prisma/adapter-pg）
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**認証フロー：**
+```
+ユーザー → Google OAuth → NextAuth.js → セッション管理 → 各ページ
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ローカル開発手順
 
-## Learn More
+### 前提条件
 
-To learn more about Next.js, take a look at the following resources:
+- Node.js 22以上
+- pnpm
+- Docker Desktop
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### セットアップ
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# リポジトリのクローン
+git clone https://github.com/Kago777/my-wallet.git
+cd my-wallet
 
-## Deploy on Vercel
+# 依存関係のインストール
+pnpm install
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# 環境変数の設定
+cp .env.example .env.local
+# .env.local を編集して各値を設定
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# PostgreSQL の起動（Docker）
+docker compose up -d db
+
+# .env.local の DATABASE_URL を Docker の DB に合わせる
+# DATABASE_URL=postgresql://wallet:wallet@localhost:5432/my_wallet
+
+# Prismaクライアントの生成
+pnpm exec prisma generate
+
+# DBのセットアップ（マイグレーション適用 + シード）
+pnpm db:migrate
+pnpm db:seed
+
+# 開発サーバーの起動
+pnpm dev
+```
+
+[http://localhost:3000](http://localhost:3000) でアクセスできます。
+
+### Dockerでの起動（DB + アプリ）
+
+`.env.example` をコピーして `.env.local` を作成し、`AUTH_SECRET`・`AUTH_GOOGLE_ID`・`AUTH_GOOGLE_SECRET` を設定してください。`DATABASE_URL` は `docker-compose.yml` で PostgreSQL サービス向けに上書きされます。
+
+```bash
+cp .env.example .env.local
+docker compose up -d --build
+```
+
+アプリは [http://localhost:3000](http://localhost:3000) で起動します。
+
+---
+
+## 利用可能なスクリプト
+
+| コマンド | 説明 |
+|---------|------|
+| `pnpm dev` | 開発サーバー起動 |
+| `pnpm build` | 本番ビルド（Prisma 生成 + Next.js ビルド） |
+| `pnpm start` | 本番サーバー起動 |
+| `pnpm lint` | ESLint 実行 |
+| `pnpm db:migrate` | マイグレーション適用（`prisma migrate deploy`） |
+| `pnpm db:seed` | デフォルトカテゴリの投入 |
+
+---
+
+## デプロイ構成
+
+### 構成概要
+
+```
+GitHub（mainブランチ）
+  ↓ push
+Railway（自動デプロイ）
+  ↓ Dockerビルド
+  ↓ prisma migrate deploy
+  ↓ pnpm start
+```
+
+### Dockerビルドの流れ
+
+```dockerfile
+# 1. 依存関係インストール
+pnpm install --frozen-lockfile
+
+# 2. Prismaクライアント生成
+pnpm exec prisma generate
+
+# 3. Next.jsビルド
+pnpm build
+
+# 4. 起動時
+prisma migrate deploy → db:seed → next start
+```
+
+### Cloudflare DNS設定
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| CNAME | wallet | zlgojnzd.up.railway.app | ✅ Proxied |
+
+---
+
+## 環境変数一覧
+
+| 変数名 | 説明 | 必須 |
+|--------|------|------|
+| `DATABASE_URL` | PostgreSQL接続URL | ✅ |
+| `AUTH_SECRET` | NextAuth.js署名シークレット（`openssl rand -base64 32`） | ✅ |
+| `AUTH_GOOGLE_ID` | Google OAuth クライアントID | ✅ |
+| `AUTH_GOOGLE_SECRET` | Google OAuth クライアントシークレット | ✅ |
+
+> `NEXTAUTH_URL` / `NODE_ENV` はコード内で参照していません。NextAuth v5 は `trustHost: true` によりホストを自動判定し、`NODE_ENV` は Next.js / Node が自動設定します。
+
+### .env.local の例
+
+`.env.example` と同じ内容です。
+
+```env
+DATABASE_URL=postgresql://wallet:wallet@localhost:5432/my_wallet
+AUTH_SECRET=your_secret_here
+AUTH_GOOGLE_ID=your_google_client_id
+AUTH_GOOGLE_SECRET=your_google_client_secret
+```
+
+### Google OAuth設定
+
+[Google Cloud Console](https://console.cloud.google.com/) にて以下のリダイレクトURIを登録：
+
+```
+http://localhost:3000/api/auth/callback/google   # ローカル開発用
+https://wallet.kagotani.me/api/auth/callback/google  # 本番用
+```

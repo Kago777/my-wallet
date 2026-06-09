@@ -1,51 +1,39 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaClient, CategoryType } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-const adapter = new PrismaPg(
-  process.env.DATABASE_URL ?? "postgresql://dummy:dummy@localhost:5432/dummy"
-);
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
 
+const adapter = new PrismaPg(databaseUrl);
 const prisma = new PrismaClient({ adapter });
 
+const defaultCategories: { name: string; type: CategoryType }[] = [
+  { name: "食費", type: "expense" },
+  { name: "交通費", type: "expense" },
+  { name: "娯楽", type: "expense" },
+  { name: "日用品", type: "expense" },
+  { name: "医療", type: "expense" },
+  { name: "給料", type: "income" },
+  { name: "副業", type: "income" },
+];
+
 async function main() {
-  // デフォルトカテゴリ
-  const categories = [
-    { name: "食費", type: "expense", isDefault: true },
-    { name: "交通費", type: "expense", isDefault: true },
-    { name: "娯楽", type: "expense", isDefault: true },
-    { name: "日用品", type: "expense", isDefault: true },
-    { name: "医療", type: "expense", isDefault: true },
-    { name: "給料", type: "income", isDefault: true },
-    { name: "副業", type: "income", isDefault: true },
-  ];
-
-  for (const category of categories) {
-    await prisma.category.create({ data: category });
+  const existing = await prisma.category.count({ where: { isDefault: true } });
+  if (existing === 0) {
+    for (const category of defaultCategories) {
+      await prisma.category.create({
+        data: { ...category, isDefault: true },
+      });
+    }
   }
-
-  // デフォルトユーザー
-  const user = await prisma.user.create({
-    data: {
-      email: "test@example.com",
-      name: "テストユーザー",
-    },
-  });
-
-  // デフォルト財布
-  await prisma.wallet.create({
-    data: {
-      id: "default-wallet",
-      name: "現金",
-      type: "cash",
-      balance: 0,
-      userId: user.id,
-    },
-  });
-
-  console.log("シードデータの投入完了");
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    process.stderr.write(`${error}\n`);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

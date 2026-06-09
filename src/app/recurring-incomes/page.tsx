@@ -1,31 +1,24 @@
-import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/auth.server";
-import { redirect } from "next/navigation";
-import { createRecurringIncome, deleteRecurringIncome } from "@/app/actions/recurringIncome";
-
-const cycleTypeLabel = (type: string) => {
-  if (type === "monthly") return "毎月";
-  if (type === "weekly") return "毎週";
-  return "毎年";
-};
+import { prisma } from "@/lib/db";
+import { requireAuth } from "@/auth.server";
+import {
+  createRecurringIncome,
+  deleteRecurringIncome,
+} from "@/app/actions/recurring-income";
+import { getCategoriesForUser, getWalletsForUser } from "@/lib/queries";
+import { cycleTypeLabel } from "@/lib/labels";
 
 export default async function RecurringIncomesPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
+  const user = await requireAuth();
 
-  const recurringIncomes = await prisma.recurringIncome.findMany({
-    where: { wallet: { userId: user.id } },
-    include: { category: true, wallet: true },
-    orderBy: { cycleDay: "asc" },
-  });
-
-  const categories = await prisma.category.findMany({
-    where: { OR: [{ isDefault: true }, { userId: user.id }] },
-  });
-
-  const wallets = await prisma.wallet.findMany({
-    where: { userId: user.id },
-  });
+  const [recurringIncomes, categories, wallets] = await Promise.all([
+    prisma.recurringIncome.findMany({
+      where: { wallet: { userId: user.id } },
+      include: { category: true, wallet: true },
+      orderBy: { cycleDay: "asc" },
+    }),
+    getCategoriesForUser(user.id),
+    getWalletsForUser(user.id),
+  ]);
 
   const totalMonthly = recurringIncomes
     .filter((r) => r.cycleType === "monthly")
@@ -43,9 +36,7 @@ export default async function RecurringIncomesPage() {
         </span>
       </p>
 
-      {/* 追加フォーム */}
-      <div className="rounded-xl p-6 mb-8"
-        style={{ background: "var(--navy-800)", border: "1px solid var(--navy-600)" }}>
+      <div className="card p-6 mb-8">
         <h2 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
           定期収入を追加
         </h2>
@@ -55,24 +46,17 @@ export default async function RecurringIncomesPage() {
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>名前</label>
               <input type="text" name="name" placeholder="給料・家賃収入等"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }} required />
+                className="input" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>金額</label>
-              <input type="number" name="amount" placeholder="0"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }} required />
+              <input type="number" name="amount" placeholder="0" className="input" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>サイクル</label>
-              <select name="cycleType" className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}>
+              <select name="cycleType" className="select">
                 <option value="monthly">毎月</option>
                 <option value="weekly">毎週</option>
                 <option value="yearly">毎年</option>
@@ -82,33 +66,23 @@ export default async function RecurringIncomesPage() {
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>日付</label>
               <input type="number" name="cycleDay" min="1" max="31" placeholder="1〜31"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }} required />
+                className="input" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>開始日</label>
-              <input type="date" name="startDate"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}
+              <input type="date" name="startDate" className="input"
                 defaultValue={new Date().toISOString().split("T")[0]} required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>終了日（任意）</label>
-              <input type="date" name="endDate"
-                className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }} />
+              <input type="date" name="endDate" className="input" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>カテゴリ</label>
-              <select name="categoryId" className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}>
+              <select name="categoryId" className="select">
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -117,24 +91,19 @@ export default async function RecurringIncomesPage() {
             <div>
               <label className="block text-sm font-medium mb-2"
                 style={{ color: "var(--text-secondary)" }}>財布</label>
-              <select name="walletId" className="w-full rounded-lg px-4 py-3 text-sm"
-                style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                  color: "var(--text-primary)" }}>
+              <select name="walletId" className="select">
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}
               </select>
             </div>
           </div>
-          <button type="submit"
-            className="w-full py-3 rounded-lg text-sm font-semibold"
-            style={{ background: "var(--emerald-500)", color: "#fff" }}>
+          <button type="submit" className="btn-primary w-full py-3">
             追加
           </button>
         </form>
       </div>
 
-      {/* 一覧 */}
       <div className="space-y-3">
         {recurringIncomes.length === 0 ? (
           <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
@@ -142,8 +111,7 @@ export default async function RecurringIncomesPage() {
           </p>
         ) : (
           recurringIncomes.map((r) => (
-            <div key={r.id} className="rounded-xl px-6 py-5 flex justify-between items-center"
-              style={{ background: "var(--navy-800)", border: "1px solid var(--navy-600)" }}>
+            <div key={r.id} className="card px-6 py-5 flex justify-between items-center">
               <div>
                 <p className="font-medium">{r.name}</p>
                 <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>

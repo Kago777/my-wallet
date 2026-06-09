@@ -6,77 +6,99 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum WalletType {
+  cash
+  bank
+  credit
+}
+
+enum TransactionType {
+  income
+  expense
+}
+
+enum CategoryType {
+  income
+  expense
+}
+
+enum CycleType {
+  monthly
+  weekly
+  yearly
+}
+
 model User {
-  id              String            @id @default(uuid())
-  email           String            @unique
-  name            String?
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  wallets         Wallet[]
-  categories      Category[]
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String?
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  wallets          Wallet[]
+  categories       Category[]
 }
 
 model Wallet {
-  id              String            @id @default(uuid())
-  name            String
-  type            String            // "cash" | "bank" | "credit"
-  balance         Int               @default(0)
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
-  userId          String            @map("user_id")
-  user            User              @relation(fields: [userId], references: [id])
-  transactions    Transaction[]
-  subscriptions   Subscription[]
+  id               String            @id @default(uuid())
+  name             String
+  type             WalletType
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  userId           String            @map("user_id")
+  user             User              @relation(fields: [userId], references: [id])
+  transactions     Transaction[]
+  subscriptions    Subscription[]
   recurringIncomes RecurringIncome[]
-  budgets         Budget[]
+  budgets          Budget[]
 }
 
 model Transaction {
-  id          String    @id @default(uuid())
+  id          String          @id @default(uuid())
   amount      Int
-  type        String    // "income" | "expense"
+  type        TransactionType
   description String?
-  date        DateTime  @default(now())
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  walletId    String    @map("wallet_id")
-  wallet      Wallet    @relation(fields: [walletId], references: [id])
-  categoryId  String    @map("category_id")
-  category    Category  @relation(fields: [categoryId], references: [id])
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  walletId    String          @map("wallet_id")
+  wallet      Wallet          @relation(fields: [walletId], references: [id])
+  categoryId  String          @map("category_id")
+  category    Category        @relation(fields: [categoryId], references: [id])
 }
 
 model Category {
-  id              String            @id @default(uuid())
-  name            String
-  type            String            // "income" | "expense"
-  isDefault       Boolean           @default(false) @map("is_default")
-  createdAt       DateTime          @default(now()) @map("created_at")
-  userId          String?           @map("user_id")
-  user            User?             @relation(fields: [userId], references: [id])
-  transactions    Transaction[]
-  subscriptions   Subscription[]
+  id               String            @id @default(uuid())
+  name             String
+  type             CategoryType
+  isDefault        Boolean           @default(false) @map("is_default")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  userId           String?           @map("user_id")
+  user             User?             @relation(fields: [userId], references: [id])
+  transactions     Transaction[]
+  subscriptions    Subscription[]
   recurringIncomes RecurringIncome[]
-  budgets         Budget[]
+  budgets          Budget[]
 }
 
 model Subscription {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   amount      Int
-  billingDate Int       // 毎月何日
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  walletId    String    @map("wallet_id")
-  wallet      Wallet    @relation(fields: [walletId], references: [id])
-  categoryId  String    @map("category_id")
-  category    Category  @relation(fields: [categoryId], references: [id])
+  billingDate Int      @map("billing_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  walletId    String   @map("wallet_id")
+  wallet      Wallet   @relation(fields: [walletId], references: [id])
+  categoryId  String   @map("category_id")
+  category    Category @relation(fields: [categoryId], references: [id])
 }
 
 model RecurringIncome {
   id          String    @id @default(uuid())
   name        String
   amount      Int
-  cycleType   String    @map("cycle_type")  // "monthly" | "weekly" | "yearly"
+  cycleType   CycleType @map("cycle_type")
   cycleDay    Int       @map("cycle_day")
   startDate   DateTime  @map("start_date")
   endDate     DateTime? @map("end_date")
@@ -87,14 +109,15 @@ model RecurringIncome {
   categoryId  String    @map("category_id")
   category    Category  @relation(fields: [categoryId], references: [id])
 }
+
 model Budget {
-  id          String    @id @default(uuid())
-  amount      Int
-  month       String
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  walletId    String    @map("wallet_id")
-  wallet      Wallet    @relation(fields: [walletId], references: [id])
-  categoryId  String    @map("category_id")
-  category    Category  @relation(fields: [categoryId], references: [id])
+  id         String   @id @default(uuid())
+  amount     Int
+  month      String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  walletId   String   @map("wallet_id")
+  wallet     Wallet   @relation(fields: [walletId], references: [id])
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id])
 }

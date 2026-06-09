@@ -1,19 +1,24 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { getSessionUser } from "@/auth.server";
-import { redirect } from "next/navigation";
+import { requireAuth } from "@/auth.server";
+import {
+  assertSubscriptionOwnership,
+  assertWalletOwnership,
+} from "@/lib/authorization";
+import { requireInt, requireString } from "@/lib/form";
 
 export async function createSubscription(formData: FormData) {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
+  const user = await requireAuth();
 
-  const name = formData.get("name") as string;
-  const amount = parseInt(formData.get("amount") as string);
-  const billingDate = parseInt(formData.get("billingDate") as string);
-  const categoryId = formData.get("categoryId") as string;
-  const walletId = formData.get("walletId") as string;
+  const name = requireString(formData, "name");
+  const amount = requireInt(formData, "amount");
+  const billingDate = requireInt(formData, "billingDate");
+  const categoryId = requireString(formData, "categoryId");
+  const walletId = requireString(formData, "walletId");
+
+  await assertWalletOwnership(walletId, user.id);
 
   await prisma.subscription.create({
     data: {
@@ -29,7 +34,11 @@ export async function createSubscription(formData: FormData) {
 }
 
 export async function deleteSubscription(formData: FormData) {
-  const id = formData.get("id") as string;
+  const user = await requireAuth();
+  const id = requireString(formData, "id");
+
+  await assertSubscriptionOwnership(id, user.id);
   await prisma.subscription.delete({ where: { id } });
+
   revalidatePath("/subscriptions");
 }

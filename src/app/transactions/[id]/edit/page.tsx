@@ -1,17 +1,15 @@
-import { prisma } from "@/lib/prisma";
-import { notFound, redirect } from "next/navigation";
-import { getSessionUser } from "@/auth.server";
+import { prisma } from "@/lib/db";
+import { notFound } from "next/navigation";
+import { requireAuth } from "@/auth.server";
 import TransactionForm from "@/components/TransactionForm";
+import { getCategoriesForUser, getWalletsForUser } from "@/lib/queries";
 
 export default async function EditTransactionPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-
-  const userId = user.id;
+  const user = await requireAuth();
   const { id } = await params;
 
   const transaction = await prisma.transaction.findUnique({
@@ -19,15 +17,12 @@ export default async function EditTransactionPage({
     include: { wallet: true },
   });
 
-  if (!transaction || transaction.wallet.userId !== userId) notFound();
+  if (!transaction || transaction.wallet.userId !== user.id) notFound();
 
-  const categories = await prisma.category.findMany({
-    where: { OR: [{ isDefault: true }, { userId }] },
-  });
-
-  const wallets = await prisma.wallet.findMany({
-    where: { userId },
-  });
+  const [categories, wallets] = await Promise.all([
+    getCategoriesForUser(user.id),
+    getWalletsForUser(user.id),
+  ]);
 
   return (
     <main className="p-8 max-w-lg mx-auto">
@@ -37,7 +32,7 @@ export default async function EditTransactionPage({
         wallets={wallets}
         defaultValues={{
           id: transaction.id,
-          type: transaction.type as "expense" | "income",
+          type: transaction.type,
           amount: transaction.amount,
           categoryId: transaction.categoryId,
           walletId: transaction.walletId,

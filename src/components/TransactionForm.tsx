@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { CategoryType, TransactionType, WalletType } from "@/generated/prisma/client";
 
 type Category = {
   id: string;
   name: string;
-  type: string;
+  type: CategoryType;
 };
 
 type Wallet = {
   id: string;
   name: string;
-  type: string;
+  type: WalletType;
 };
 
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
   wallets: Wallet[];
   defaultValues?: {
     id: string;
-    type: "expense" | "income";
+    type: TransactionType;
     amount: number;
     categoryId: string;
     walletId: string;
@@ -30,12 +31,9 @@ type Props = {
 };
 
 export default function TransactionForm({ categories, wallets, defaultValues }: Props) {
-  const router = useRouter();
   const isEdit = !!defaultValues;
 
-  const [type, setType] = useState<"expense" | "income">(
-    defaultValues?.type ?? "expense"
-  );
+  const [type, setType] = useState<TransactionType>(defaultValues?.type ?? "expense");
   const [amount, setAmount] = useState(
     defaultValues?.amount ? String(defaultValues.amount) : ""
   );
@@ -71,16 +69,11 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
       const { createTransaction } = await import("@/app/actions/transaction");
       await createTransaction(formData);
     }
-
-    router.push("/transactions");
   };
 
   return (
-    <div className="rounded-xl p-8"
-      style={{ background: "var(--navy-800)", border: "1px solid var(--navy-600)" }}>
+    <div className="card p-8">
       <form onSubmit={handleSubmit} className="space-y-6">
-
-        {/* 収支切り替え */}
         <div className="grid grid-cols-2 rounded-lg overflow-hidden"
           style={{ border: "1px solid var(--navy-600)" }}>
           <button type="button" onClick={() => { setType("expense"); setCategoryId(""); }}
@@ -101,9 +94,7 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </button>
         </div>
 
-        {/* 金額 */}
-        <div className="rounded-xl p-6"
-          style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)" }}>
+        <div className="rounded-xl p-6 card" style={{ background: "var(--navy-700)" }}>
           <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>金額</p>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-bold" style={{ color: "var(--text-muted)" }}>¥</span>
@@ -119,7 +110,6 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </div>
         </div>
 
-        {/* カテゴリ pills */}
         <div>
           <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>カテゴリ</p>
           <div className="flex flex-wrap gap-2">
@@ -152,16 +142,10 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </div>
         </div>
 
-        {/* 財布・日付 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>財布</p>
-            <select
-              value={walletId}
-              onChange={(e) => setWalletId(e.target.value)}
-              className="w-full rounded-lg px-4 py-3 text-sm"
-              style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                color: "var(--text-primary)" }}>
+            <select value={walletId} onChange={(e) => setWalletId(e.target.value)} className="select">
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>{w.name}</option>
               ))}
@@ -169,30 +153,15 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </div>
           <div>
             <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>日付</p>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg px-4 py-3 text-sm"
-              style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-                color: "var(--text-primary)" }}
-              required
-            />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="input" required />
           </div>
         </div>
 
-        {/* メモ */}
         <div>
           <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>メモ（任意）</p>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-lg px-4 py-3 text-sm"
-            style={{ background: "var(--navy-700)", border: "1px solid var(--navy-600)",
-              color: "var(--text-primary)" }}
-            placeholder="任意"
-          />
+          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
+            className="input" placeholder="任意" />
         </div>
 
         <div className="flex gap-4">
@@ -208,12 +177,12 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             {loading ? "保存中..." : isEdit ? "更新" : "保存"}
           </button>
           {isEdit && (
-            <a href="/transactions"
+            <Link href="/transactions"
               className="flex-1 py-3 rounded-lg text-sm font-semibold text-center"
               style={{ background: "var(--navy-700)", color: "var(--text-secondary)",
                 border: "1px solid var(--navy-600)" }}>
               キャンセル
-            </a>
+            </Link>
           )}
         </div>
       </form>

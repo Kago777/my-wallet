@@ -23,7 +23,7 @@ export default function CategoryFilter({
   return (
     <select
       onChange={handleChange}
-      className="border rounded px-4 py-2 ml-auto"
+      className="select w-auto ml-auto"
       defaultValue={searchParams.get("categoryId") ?? ""}
     >
       <option value="">カテゴリで絞り込み</option>

@@ -12,6 +12,6 @@ export function getCategoriesForUser(userId: string) {
 export function getWalletsForUser(userId: string) {
   return prisma.wallet.findMany({
     where: { userId },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 }

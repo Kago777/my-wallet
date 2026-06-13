@@ -33,11 +33,21 @@ type Props = {
 export default function TransactionForm({ categories, wallets, defaultValues }: Props) {
   const isEdit = !!defaultValues;
 
+  const getNeutralCategoryId = (transactionType: TransactionType) => {
+    return (
+      categories.find((c) => c.type === transactionType && c.name === "その他")?.id ??
+      categories.find((c) => c.type === transactionType)?.id ??
+      ""
+    );
+  };
+
   const [type, setType] = useState<TransactionType>(defaultValues?.type ?? "expense");
   const [amount, setAmount] = useState(
     defaultValues?.amount ? String(defaultValues.amount) : ""
   );
-  const [categoryId, setCategoryId] = useState(defaultValues?.categoryId ?? "");
+  const [categoryId, setCategoryId] = useState(
+    defaultValues?.categoryId ?? getNeutralCategoryId(defaultValues?.type ?? "expense")
+  );
   const [walletId, setWalletId] = useState(
     defaultValues?.walletId ?? wallets[0]?.id ?? ""
   );
@@ -53,11 +63,12 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
     e.preventDefault();
     setLoading(true);
 
+    const selectedCategoryId = categoryId || getNeutralCategoryId(type);
     const formData = new FormData();
     if (isEdit) formData.append("id", defaultValues.id);
     formData.append("type", type);
     formData.append("amount", amount);
-    formData.append("categoryId", (categoryId || filteredCategories[0]?.id) ?? "");
+    formData.append("categoryId", selectedCategoryId);
     formData.append("walletId", walletId);
     formData.append("date", date);
     formData.append("description", description);
@@ -76,7 +87,12 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 rounded-lg overflow-hidden"
           style={{ border: "1px solid var(--navy-600)" }}>
-          <button type="button" onClick={() => { setType("expense"); setCategoryId(""); }}
+          <button
+            type="button"
+            onClick={() => {
+              setType("expense");
+              setCategoryId(getNeutralCategoryId("expense"));
+            }}
             className="py-3 text-sm font-semibold transition-colors"
             style={{
               background: type === "expense" ? "var(--red-400)" : "var(--navy-700)",
@@ -84,7 +100,12 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             }}>
             支出
           </button>
-          <button type="button" onClick={() => { setType("income"); setCategoryId(""); }}
+          <button
+            type="button"
+            onClick={() => {
+              setType("income");
+              setCategoryId(getNeutralCategoryId("income"));
+            }}
             className="py-3 text-sm font-semibold transition-colors"
             style={{
               background: type === "income" ? "var(--emerald-500)" : "var(--navy-700)",
@@ -112,32 +133,34 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
 
         <div>
           <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>カテゴリ</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="overflow-x-auto pb-2 scrollbar-hidden">
             {filteredCategories.length === 0 ? (
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>
                 カテゴリがありません
               </p>
             ) : (
-              filteredCategories.map((c) => {
-                const isActive = categoryId === c.id ||
-                  (!categoryId && filteredCategories[0]?.id === c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCategoryId(c.id)}
-                    className="px-4 py-2 rounded-full text-sm transition-colors"
-                    style={{
-                      background: isActive
-                        ? type === "expense" ? "var(--red-400)" : "var(--emerald-500)"
-                        : "var(--navy-700)",
-                      color: isActive ? "#fff" : "var(--text-secondary)",
-                      border: "1px solid var(--navy-600)",
-                    }}>
-                    {c.name}
-                  </button>
-                );
-              })
+              <div className="flex gap-2 min-w-max">
+                {filteredCategories.map((c) => {
+                  const currentSelectedId = categoryId || getNeutralCategoryId(type);
+                  const isActive = currentSelectedId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCategoryId(c.id)}
+                      className="flex-shrink-0 px-4 py-2 rounded-full text-sm transition-colors whitespace-nowrap"
+                      style={{
+                        background: isActive
+                          ? type === "expense" ? "var(--red-400)" : "var(--emerald-500)"
+                          : "var(--navy-700)",
+                        color: isActive ? "#fff" : "var(--text-secondary)",
+                        border: "1px solid var(--navy-600)",
+                      }}>
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

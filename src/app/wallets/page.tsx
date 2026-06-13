@@ -1,64 +1,127 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/auth.server";
 import { createWallet, deleteWallet } from "@/app/actions/wallet";
 import { walletTypeLabel } from "@/lib/labels";
+import { CreateWalletForm } from "@/components/CreateWalletForm";
+import { WalletIcon } from "@/components/WalletIcon";
 
 export default async function WalletsPage() {
   const user = await requireAuth();
 
   const wallets = await prisma.wallet.findMany({
     where: { userId: user.id },
-    include: { _count: { select: { transactions: true } } },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+
+  // Calculate wallet balances
+  const walletBalanceGroups = await prisma.transaction.groupBy({
+    by: ["walletId", "type"],
+    where: { wallet: { userId: user.id } },
+    _sum: { amount: true },
+  });
+
+  const walletBalanceMap = new Map<string, number>();
+  walletBalanceGroups.forEach((group) => {
+    const current = walletBalanceMap.get(group.walletId) ?? 0;
+    const amount = group._sum.amount ?? 0;
+    const sign = group.type === "income" ? 1 : -1;
+    walletBalanceMap.set(group.walletId, current + amount * sign);
+  });
+
+  // Check which wallets have transactions (for delete button)
+  const walletTransactionCounts = await prisma.transaction.groupBy({
+    by: ["walletId"],
+    where: { wallet: { userId: user.id } },
+    _count: true,
+  });
+
+  const transactionCountMap = new Map<string, number>();
+  walletTransactionCounts.forEach((group) => {
+    transactionCountMap.set(group.walletId, group._count);
   });
 
   return (
-    <main className="p-8 max-w-2xl mx-auto">
+    <main className="p-4 sm:p-8 max-w-2xl mx-auto">
       <h1 className="font-display text-2xl font-bold mb-8">財布・口座管理</h1>
 
       <div className="card p-6 mb-8">
         <h2 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
           財布を追加
         </h2>
-        <form action={createWallet} className="flex gap-3">
-          <input type="text" name="name"
-            placeholder="財布の名前（例：現金・楽天銀行）"
-            className="input flex-1" required />
-          <select name="type" className="select w-auto">
-            <option value="cash">現金</option>
-            <option value="bank">銀行</option>
-            <option value="credit">クレジット</option>
-          </select>
-          <button type="submit" className="btn-primary px-4 py-3">
-            追加
-          </button>
-        </form>
+        <CreateWalletForm action={createWallet} />
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {wallets.length === 0 ? (
           <p className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>
             財布がありません。追加してください。
           </p>
         ) : (
-          wallets.map((w) => (
-            <div key={w.id} className="card px-6 py-5 flex justify-between items-center">
-              <div>
-                <p className="font-medium">{w.name}</p>
-                <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-                  {walletTypeLabel(w.type)}　・　{w._count.transactions}件の取引
-                </p>
+          wallets.map((w) => {
+            const balance = walletBalanceMap.get(w.id) ?? 0;
+            const hasTransactions = (transactionCountMap.get(w.id) ?? 0) > 0;
+            return (
+              <div
+                key={w.id}
+                className="rounded-xl p-4"
+                style={{
+                  background: "var(--navy-800)",
+                  border: "1px solid var(--navy-600)",
+                }}
+              >
+                {/* 上段：名前・メタ情報 ↔ 残高 */}
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <WalletIcon type={w.type} className="h-4 w-4 text-slate-400" />
+                      <p className="text-sm font-medium">{w.name}</p>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      {walletTypeLabel(w.type)} · {transactionCountMap.get(w.id) ?? 0}件の取引
+                    </p>
+                  </div>
+                  <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
+                    ¥{Math.abs(balance).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* ボタン */}
+                <div className="flex gap-2">
+                  <Link
+                    href={`/wallets/${w.id}/edit`}
+                    className="flex-1 text-center py-2 rounded-lg text-sm font-medium"
+                    style={{
+                      background: "var(--navy-700)",
+                      color: "var(--text-secondary)",
+                      border: "1px solid var(--navy-600)",
+                    }}
+                  >
+                    編集
+                  </Link>
+                  <form action={deleteWallet} className="flex-1">
+                    <input type="hidden" name="id" value={w.id} />
+                    <button
+                      type="submit"
+                      className="w-full py-2 rounded-lg text-sm font-medium"
+                      disabled={hasTransactions}
+                      style={hasTransactions ? {
+                        opacity: 0.35,
+                        border: "1px solid var(--navy-600)",
+                        color: "var(--text-muted)",
+                      } : {
+                        background: "rgba(248,113,113,0.1)",
+                        color: "var(--red-400)",
+                        border: "1px solid rgba(248,113,113,0.3)",
+                      }}
+                    >
+                      {hasTransactions ? "削除不可" : "削除"}
+                    </button>
+                  </form>
+                </div>
               </div>
-              <form action={deleteWallet}>
-                <input type="hidden" name="id" value={w.id} />
-                <button type="submit"
-                  className="text-sm"
-                  style={{ color: w._count.transactions > 0 ? "var(--text-muted)" : "var(--red-400)" }}
-                  disabled={w._count.transactions > 0}>
-                  {w._count.transactions > 0 ? "削除不可" : "削除"}
-                </button>
-              </form>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </main>

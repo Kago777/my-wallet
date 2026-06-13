@@ -9,14 +9,14 @@ export default async function Navbar() {
 
   return (
     <nav style={{ background: "var(--navy-800)", borderBottom: "1px solid var(--navy-600)" }}
-      className="px-8 py-4">
+      className="px-4 sm:px-8 py-2 sm:py-4">
       <div className="flex justify-between items-center">
         <Link href="/" className="font-display text-xl font-bold"
           style={{ color: "var(--emerald-400)" }}>
           Wallet
         </Link>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           <Link href="/transactions" style={{ color: "var(--text-secondary)", fontSize: "14px" }}
             className="hover:text-white transition-colors">
             収支
@@ -27,7 +27,7 @@ export default async function Navbar() {
             <DropdownMenu trigger={
               <span style={{ color: "var(--text-secondary)" }}
                 className="flex items-center hover:text-white transition-colors">
-                <Menu size={18} />
+                <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
               </span>
             }>
               <Link href="/wallets"
@@ -54,7 +54,7 @@ export default async function Navbar() {
           )}
 
           {/* ユーザーアイコン */}
-          {session?.user && (
+            {session?.user && (
             <DropdownMenu trigger={
               session.user.image ? (
                 <Image
@@ -62,12 +62,12 @@ export default async function Navbar() {
                   alt={session.user.name ?? "user"}
                   width={32}
                   height={32}
-                  className="rounded-full"
+                  className="rounded-full w-8 h-8 sm:w-10 sm:h-10"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
                   style={{ background: "var(--emerald-500)", color: "#fff" }}>
-                  <User size={16} />
+                  <User className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               )
             }>

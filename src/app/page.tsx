@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import DashboardChart from "@/components/DashboardChart";
 import MonthlyChart from "@/components/MonthlyChart";
+import WalletOrderSelector from "@/components/WalletOrderSelector";
 import { requireAuth } from "@/auth.server";
 import { Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { aggregateByPeriods, buildPeriods } from "@/lib/periods";
@@ -16,11 +17,33 @@ export default async function Home({
 
   const wallets = await prisma.wallet.findMany({
     where: { userId: user.id },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
   const walletFilter = walletId
     ? { wallet: { userId: user.id, id: walletId } }
     : { wallet: { userId: user.id } };
+
+  const walletBalanceGroups = await prisma.transaction.groupBy({
+    by: ["walletId", "type"],
+    where: { wallet: { userId: user.id } },
+    _sum: { amount: true },
+  });
+
+  const walletBalanceMap = new Map<string, number>();
+  walletBalanceGroups.forEach((group) => {
+    const current = walletBalanceMap.get(group.walletId) ?? 0;
+    const amount = group._sum.amount ?? 0;
+    const sign = group.type === "income" ? 1 : -1;
+    walletBalanceMap.set(group.walletId, current + amount * sign);
+  });
+
+  const walletShareData = wallets
+    .map((w) => ({
+      name: w.name,
+      amount: Math.max(0, walletBalanceMap.get(w.id) ?? 0),
+    }))
+    .filter((item) => item.amount > 0);
 
   const transactions = await prisma.transaction.findMany({
     where: walletFilter,
@@ -69,31 +92,16 @@ export default async function Home({
   const monthlyData = aggregateByPeriods(periodTransactions, periods);
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex gap-2">
-          <Link
-            href="/"
-            className={`btn-filter ${!walletId ? "btn-filter-active" : "btn-filter-inactive"}`}>
-            すべて
-          </Link>
-          {wallets.map((w) => (
-            <Link
-              key={w.id}
-              href={`/?walletId=${w.id}`}
-              className={`btn-filter ${walletId === w.id ? "btn-filter-active" : "btn-filter-inactive"}`}>
-              {w.name}
-            </Link>
-          ))}
-        </div>
-
-        <Link href="/transactions/new" className="btn-primary flex items-center gap-2 px-4 py-2">
+    <main className="p-4 sm:p-8 max-w-6xl mx-auto">
+      <div className="flex flex-col gap-4 mb-8 lg:flex-row lg:items-center lg:justify-between">
+        <WalletOrderSelector wallets={wallets} selectedWalletId={walletId} />
+        <Link href="/transactions/new" className="btn-primary flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2">
           <Plus size={16} />
           収支を追加
         </Link>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-3">
         {[
           { label: "残高", value: balance, color: "var(--text-primary)" },
           { label: "収入", value: totalIncome._sum.amount ?? 0, color: "var(--emerald-400)" },
@@ -108,15 +116,29 @@ export default async function Home({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="card p-6">
+      {!walletId ? (
+        <div className="card p-6 mb-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4">
+            <h2 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              全財産の財布ごとの割合
+            </h2>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              取引ベースで推定した財布残高の割合
+            </p>
+          </div>
+          <DashboardChart data={walletShareData} />
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 mb-6 lg:grid-cols-2">
+        <div className="card p-6 order-2 lg:order-1">
           <h2 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
             カテゴリ別支出
           </h2>
           <DashboardChart data={chartData} />
         </div>
 
-        <div className="card p-6">
+        <div className="card p-6 order-1 lg:order-2">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
               直近の取引

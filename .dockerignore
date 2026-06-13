@@ -8,3 +8,5 @@ node_modules
 coverage
 .pnpm-store
 src/generated/prisma
+
+wallet_db_backup.sql

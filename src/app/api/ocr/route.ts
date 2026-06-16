@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
     );
 
     const visionData = await visionRes.json();
+    console.log("Vision API response:", JSON.stringify(visionData, null, 2));
     const ocrText = visionData.responses?.[0]?.fullTextAnnotation?.text;
+    console.log("OCR text:", ocrText);
 
     if (!ocrText) {
       return NextResponse.json({ error: "テキストを読み取れませんでした" }, { status: 422 });

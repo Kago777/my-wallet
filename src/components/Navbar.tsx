@@ -1,12 +1,36 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { prisma } from "@/lib/db";
 import Image from "next/image";
 import { Menu, LogOut, User } from "lucide-react";
 import DropdownMenu from "@/components/DropdownMenu";
+import NotificationBell from "@/components/NotificationBell";
 
 export default async function Navbar() {
   const session = await auth();
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
 
+  const reminders = session?.user
+    ? await prisma.reminder.findMany({
+        where: { user: { email: session.user.email! } },
+        orderBy: { createdAt: "desc" },
+        include: {
+          recurringBill: {
+            include: {
+              transactions: {
+                where: {
+                  date: { gte: monthStart, lte: monthEnd },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 1,
+              },
+            },
+          },
+        },
+      })
+    : [];
   return (
     <nav style={{ background: "var(--navy-800)", borderBottom: "1px solid var(--navy-600)" }}
       className="px-4 sm:px-8 py-2 sm:py-4">
@@ -22,9 +46,10 @@ export default async function Navbar() {
             収支
           </Link>
 
+           <NotificationBell reminders={reminders} />
           {/* ハンバーガー */}
           {session?.user && (
-            <DropdownMenu trigger={
+            <DropdownMenu title="メニュー" trigger={
               <span style={{ color: "var(--text-secondary)" }}
                 className="flex items-center hover:text-white transition-colors">
                 <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -40,6 +65,11 @@ export default async function Navbar() {
                 className="block px-4 py-3 hover:bg-slate-700 transition-colors">
                 サブスク管理
               </Link>
+              <Link href="/recurring-bills"
+                style={{ color: "var(--text-secondary)", fontSize: "13px" }}
+                className="block px-4 py-3 hover:bg-slate-700 transition-colors">
+                変動定期費用管理
+              </Link>
               <Link href="/recurring-incomes"
                 style={{ color: "var(--text-secondary)", fontSize: "13px" }}
                 className="block px-4 py-3 hover:bg-slate-700 transition-colors">
@@ -52,7 +82,6 @@ export default async function Navbar() {
               </Link>
             </DropdownMenu>
           )}
-
           {/* ユーザーアイコン */}
             {session?.user && (
             <DropdownMenu trigger={

@@ -7,7 +7,7 @@ import { WalletIcon } from "@/components/WalletIcon";
 type WalletOption = {
   id: string;
   name: string;
-  type: "cash" | "bank" | "credit";
+  type: "cash" | "bank" | "credit" | "investment";
 };
 
 function areIdsEqual(a: string[], b: string[]) {

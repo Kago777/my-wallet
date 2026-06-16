@@ -9,7 +9,7 @@ import { requireString } from "@/lib/form";
 import { WalletType } from "@/generated/prisma/client";
 
 function parseWalletType(value: string): WalletType {
-  if (value === "cash" || value === "bank" || value === "credit") return value;
+  if (value === "cash" || value === "bank" || value === "credit" || value === "investment") return value;
   throw new Error("Invalid wallet type");
 }
 

@@ -2,10 +2,12 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 
-export function getCategoriesForUser(userId: string) {
+export async function getCategoriesForUser(userId: string) {
   return prisma.category.findMany({
-    where: { OR: [{ isDefault: true }, { userId }] },
-    orderBy: { name: "asc" },
+    where: {
+      OR: [{ userId }, { isDefault: true }],
+    },
+    orderBy: [{ parentId: "asc" }, { name: "asc" }],
   });
 }
 

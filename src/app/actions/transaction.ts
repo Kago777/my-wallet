@@ -87,41 +87,118 @@ function optionalDescription(formData: FormData): string | null {
   return value.trim();
 }
 
-export async function createTransactionWithItems(formData: FormData) {
+export async function createReceiptTransactions(formData: FormData) {
   const user = await requireAuth();
 
-  const amount      = Number(formData.get("amount"));
-  const categoryId  = formData.get("categoryId") as string;
-  const walletId    = formData.get("walletId")   as string;
-  const date        = new Date(formData.get("date") as string);
-  const description = formData.get("description") as string | null;
-  const itemsJson   = formData.get("items")       as string;
+  const walletId      = requireString(formData, "walletId");
+  const mainCategoryId = requireString(formData, "mainCategoryId");
+  const date          = requireString(formData, "date");
+  const store         = formData.get("store") as string | null;
+  const mainItemsJson = requireString(formData, "mainItems");
+  const splitItemsJson = requireString(formData, "splitItems");
 
-  // ウォレットの所有者確認
-  const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
-  if (!wallet || wallet.userId !== user.id) throw new Error("Not found");
+  await assertWalletOwnership(walletId, user.id);
 
-  const items = JSON.parse(itemsJson) as { name: string; amount: number }[];
+  const mainItems = JSON.parse(mainItemsJson) as { name: string; amount: number }[];
+  const splitItems = JSON.parse(splitItemsJson) as { name: string; amount: number; categoryId: string }[];
 
-  // TransactionとReceiptItemをアトミックに作成
+  const mainTotal = mainItems.reduce((sum, item) => sum + item.amount, 0);
+
   await prisma.$transaction([
-    prisma.transaction.create({
+    // メインのTransaction（チェックなし項目の合計）
+    ...(mainItems.length > 0 ? [
+      prisma.transaction.create({
+        data: {
+          amount: mainTotal,
+          type: "expense",
+          categoryId: mainCategoryId,
+          walletId,
+          date: new Date(date),
+          description: store ?? null,
+          receiptItems: {
+            create: mainItems.map((item) => ({
+              name: item.name,
+              amount: item.amount,
+            })),
+          },
+        },
+      }),
+    ] : []),
+    // 除外項目（チェックあり）ごとにTransaction作成
+    ...splitItems.map((item) =>
+      prisma.transaction.create({
+        data: {
+          amount: item.amount,
+          type: "expense",
+          categoryId: item.categoryId,
+          walletId,
+          date: new Date(date),
+          description: item.name,
+          receiptItems: {
+            create: [{ name: item.name, amount: item.amount }],
+          },
+        },
+      })
+    ),
+  ]);
+
+  redirect("/transactions");
+}
+
+export async function updateReceiptItems(formData: FormData) {
+  const user = await requireAuth();
+
+  const transactionId  = requireString(formData, "transactionId");
+  const mainItemsJson  = requireString(formData, "mainItems");
+  const splitItemsJson = requireString(formData, "splitItems");
+  const mainCategoryId = requireString(formData, "mainCategoryId");
+  const walletId       = requireString(formData, "walletId");
+  const date           = requireString(formData, "date");
+  const store          = formData.get("store") as string | null;
+
+  await assertTransactionOwnership(transactionId, user.id);
+
+  const mainItems  = JSON.parse(mainItemsJson)  as { name: string; amount: number }[];
+  const splitItems = JSON.parse(splitItemsJson) as { name: string; amount: number; categoryId: string }[];
+  const mainTotal  = mainItems.reduce((sum, item) => sum + item.amount, 0);
+
+  await prisma.$transaction([
+    // 既存のReceiptItemを全削除して再作成
+    prisma.receiptItem.deleteMany({ where: { transactionId } }),
+    // メインTransactionを更新
+    prisma.transaction.update({
+      where: { id: transactionId },
       data: {
-        amount,
-        type: "expense",
-        categoryId,
+        amount: mainTotal,
+        categoryId: mainCategoryId,
         walletId,
-        date,
-        description,
+        date: new Date(date),
+        description: store || null,
         receiptItems: {
-          create: items.map((item) => ({
+          create: mainItems.map((item) => ({
             name: item.name,
             amount: item.amount,
           })),
         },
       },
     }),
+    // 分割項目を新規Transaction作成
+    ...splitItems.map((item) =>
+      prisma.transaction.create({
+        data: {
+          amount: item.amount,
+          type: "expense",
+          categoryId: item.categoryId,
+          walletId,
+          date: new Date(date),
+          description: item.name,
+          receiptItems: {
+            create: [{ name: item.name, amount: item.amount }],
+          },
+        },
+      })
+    ),
   ]);
 
-  redirect("/");
+  redirect("/transactions");
 }

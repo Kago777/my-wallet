@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { WalletType } from "@/generated/prisma/client";
 
+
 type Wallet = {
   id: string;
   name: string;

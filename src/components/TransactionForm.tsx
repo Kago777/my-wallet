@@ -3,6 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CategoryType, TransactionType, WalletType } from "@/generated/prisma/client";
+import { Camera } from "lucide-react";
+import ReceiptCamera from "@/components/ReceiptCamera";
+import ReceiptConfirm from "@/components/RecieptConfirm";
 
 type Category = {
   id: string;
@@ -69,11 +72,36 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
 
   const filteredCategories = categories.filter((c) => c.type === type);
 
+  // OCRレシート読み取り
+  type ReceiptData = {
+    store: string | null;
+    date: string | null;
+    items: { name: string; amount: number }[];
+    total: number;
+  };
+
+  type ReceiptPhase = "none" | "camera" | "confirm";
+  const [receiptPhase, setReceiptPhase] = useState<ReceiptPhase>("none");
+  const [receiptData, setReceiptData]   = useState<ReceiptData | null>(null);
+
   // ④ handleSubmitにtransfer分岐を追加
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    // レシートデータがある場合はcreateTransactionWithItemsを使用
+    if (receiptData && mode !== "transfer") {
+      const formData = new FormData();
+      formData.append("amount", String(receiptData.total));
+      formData.append("categoryId", categoryId || getNeutralCategoryId(type));
+      formData.append("walletId", walletId);
+      formData.append("date", receiptData.date ?? date);
+      formData.append("description", receiptData.store ?? "");
+      formData.append("items", JSON.stringify(receiptData.items));
 
+      const { createTransactionWithItems } = await import("@/app/actions/transaction");
+      await createTransactionWithItems(formData);
+      return;
+    }
     if (mode === "transfer") {
       if (fromWalletId === toWalletId) {
         alert("送金元と送金先が同じです");
@@ -112,6 +140,35 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
 
   return (
     <div className="card p-8">
+      {/* レシートカメラ（フルスクリーン） */}
+      {receiptPhase === "camera" && (
+        <ReceiptCamera
+          onCapture={(data) => {
+            setReceiptData(data);
+            setReceiptPhase("confirm");
+            // 読み取った合計金額・日付をフォームに反映
+            setAmount(String(data.total));
+            if (data.date) setDate(data.date);
+          }}
+          onClose={() => setReceiptPhase("none")}
+        />
+      )}
+
+      {/* レシート確認画面 */}
+      {receiptPhase === "confirm" && receiptData && (
+        <ReceiptConfirm
+          data={receiptData}
+          walletId={walletId}
+          categoryId={categoryId}
+          onConfirm={async (confirmed) => {
+            setReceiptData(confirmed);
+            setAmount(String(confirmed.total));
+            if (confirmed.date) setDate(confirmed.date);
+            setReceiptPhase("none");
+          }}
+          onRetake={() => setReceiptPhase("camera")}
+        />
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* ⑤ タブ：grid-cols-3に変更、振替ボタン追加、アクティブ判定をmodeに変更 */}
@@ -158,7 +215,22 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             </button>
           )}
         </div>
-
+        {/* レシート読み取りボタン（新規作成・収支モード時のみ） */}
+        {!isEdit && mode !== "transfer" && (
+          <button
+            type="button"
+            onClick={() => setReceiptPhase("camera")}
+            className="w-full py-3 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+            style={{
+              background: receiptData ? "rgba(16,185,129,0.1)" : "var(--navy-700)",
+              color: receiptData ? "var(--emerald-400)" : "var(--text-secondary)",
+              border: `1px solid ${receiptData ? "rgba(16,185,129,0.3)" : "var(--navy-600)"}`,
+            }}
+          >
+            <Camera size={16} />
+            {receiptData ? `レシート読み取り済み（¥${receiptData.total.toLocaleString()}）` : "レシートから読み取る"}
+          </button>
+        )}
         {/* 金額（変更なし） */}
         <div className="rounded-xl p-6 card" style={{ background: "var(--navy-700)" }}>
           <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>金額</p>

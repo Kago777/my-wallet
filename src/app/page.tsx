@@ -15,15 +15,20 @@ export default async function Home({
   const user = await requireAuth();
   const { walletId, granularity = "month" } = await searchParams;
 
+  // ── 財布一覧 ──────────────────────────────────────────
   const wallets = await prisma.wallet.findMany({
     where: { userId: user.id },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
+  const walletIds = wallets.map((w) => w.id);
 
+  // ── 収支フィルター（財布指定 or 全財布） ──────────────
   const walletFilter = walletId
     ? { wallet: { userId: user.id, id: walletId } }
     : { wallet: { userId: user.id } };
 
+  // ── 残高計算（全期間） ────────────────────────────────
+  // Transactionの収支をウォレットごとに集計
   const walletBalanceGroups = await prisma.transaction.groupBy({
     by: ["walletId", "type"],
     where: { wallet: { userId: user.id } },
@@ -37,8 +42,8 @@ export default async function Home({
     const sign = group.type === "income" ? 1 : -1;
     walletBalanceMap.set(group.walletId, current + amount * sign);
   });
-  const walletIds = wallets.map((w) => w.id);
 
+  // Transferの送受金をwalletBalanceMapに反映
   const [transfersIn, transfersOut] = await Promise.all([
     prisma.transfer.groupBy({
       by: ["toWalletId"],
@@ -52,15 +57,38 @@ export default async function Home({
     }),
   ]);
 
-transfersIn.forEach((t) => {
-  const current = walletBalanceMap.get(t.toWalletId) ?? 0;
-  walletBalanceMap.set(t.toWalletId, current + (t._sum.amount ?? 0));
-});
-transfersOut.forEach((t) => {
-  const current = walletBalanceMap.get(t.fromWalletId) ?? 0;
-  walletBalanceMap.set(t.fromWalletId, current - (t._sum.amount ?? 0));
-});
+  transfersIn.forEach((t) => {
+    const current = walletBalanceMap.get(t.toWalletId) ?? 0;
+    walletBalanceMap.set(t.toWalletId, current + (t._sum.amount ?? 0));
+  });
+  transfersOut.forEach((t) => {
+    const current = walletBalanceMap.get(t.fromWalletId) ?? 0;
+    walletBalanceMap.set(t.fromWalletId, current - (t._sum.amount ?? 0));
+  });
 
+  // walletBalanceMapから残高を取得（Transfer込み・全期間）
+  // 財布指定時: その財布の残高、全財布時: 全財布の合計
+  const balance = walletId
+    ? (walletBalanceMap.get(walletId) ?? 0)
+    : wallets.reduce((sum, w) => sum + (walletBalanceMap.get(w.id) ?? 0), 0);
+
+  // ── 今月の収入・支出（サマリーカード表示用） ──────────
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  const [totalIncome, totalExpense] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: { type: "income", ...walletFilter, date: { gte: monthStart, lte: monthEnd } },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.aggregate({
+      where: { type: "expense", ...walletFilter, date: { gte: monthStart, lte: monthEnd } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  // ── 財布ごとの残高割合（円グラフ用） ─────────────────
   const walletShareData = wallets
     .map((w) => ({
       name: w.name,
@@ -68,39 +96,7 @@ transfersOut.forEach((t) => {
     }))
     .filter((item) => item.amount > 0);
 
-  const transactions = await prisma.transaction.findMany({
-    where: walletFilter,
-    include: { category: true },
-    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: 5,
-  });
-
-  const totalIncome = await prisma.transaction.aggregate({
-    where: { type: "income", ...walletFilter },
-    _sum: { amount: true },
-  });
-
-  const totalExpense = await prisma.transaction.aggregate({
-    where: { type: "expense", ...walletFilter },
-    _sum: { amount: true },
-  });
-
-  let balance = (totalIncome._sum.amount ?? 0) - (totalExpense._sum.amount ?? 0);
-
-  if (walletId) {
-    const [transferIn, transferOut] = await Promise.all([
-      prisma.transfer.aggregate({
-        where: { toWalletId: walletId },
-        _sum: { amount: true },
-      }),
-      prisma.transfer.aggregate({
-        where: { fromWalletId: walletId },
-        _sum: { amount: true },
-      }),
-    ]);
-    balance += (transferIn._sum.amount ?? 0) - (transferOut._sum.amount ?? 0);
-  }
-
+  // ── カテゴリ別支出（円グラフ用） ─────────────────────
   const expenseByCategory = await prisma.transaction.groupBy({
     by: ["categoryId"],
     where: { type: "expense", ...walletFilter },
@@ -113,6 +109,15 @@ transfersOut.forEach((t) => {
     amount: e._sum.amount ?? 0,
   }));
 
+  // ── 直近5件のトランザクション ─────────────────────────
+  const transactions = await prisma.transaction.findMany({
+    where: walletFilter,
+    include: { category: true },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: 5,
+  });
+
+  // ── 月別・週別収支グラフ用データ ─────────────────────
   const periods = buildPeriods(granularity);
   const periodStart = periods[0]?.start;
   const periodTransactions =
@@ -127,7 +132,6 @@ transfersOut.forEach((t) => {
       : [];
 
   const monthlyData = aggregateByPeriods(periodTransactions, periods);
-
   return (
     <main className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 mb-8 lg:flex-row lg:items-center lg:justify-between">

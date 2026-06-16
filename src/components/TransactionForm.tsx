@@ -271,7 +271,7 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             className="flex-1 py-3 rounded-lg text-sm font-semibold transition-colors"
             style={{
               background:
-                mode === "transfer" ? "var(--navy-400)"
+                mode === "transfer" ? "var(--emerald-500)"
                 : mode === "expense"  ? "var(--red-400)"
                 : "var(--emerald-500)",
               color: "#fff",

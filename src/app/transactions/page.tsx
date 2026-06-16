@@ -4,7 +4,10 @@ import { deleteTransaction } from "@/app/actions/transaction";
 import CategoryFilter from "@/components/CategoryFilter";
 import { requireAuth } from "@/auth.server";
 import { getCategoriesForUser } from "@/lib/queries";
-import { Pencil, Trash2, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { Pencil, Trash2, Plus, TrendingUp, TrendingDown, LucideArrowUpDown } from "lucide-react";
+import { deleteTransfer } from "@/app/actions/transfer";  // 追加
+import { ArrowLeftRight } from "lucide-react";             // 振替アイコン（任意）
+import { ArrowRight } from "lucide-react";
 
 export default async function TransactionsPage({
   searchParams,
@@ -19,12 +22,20 @@ export default async function TransactionsPage({
   const transactions = await prisma.transaction.findMany({
     where: {
       wallet: { userId: user.id },
-      ...(type ? { type: type as "income" | "expense" } : {}),
+      ...(type && type !== "transfer" ? { type: type as "income" | "expense" } : {}),
       ...(categoryId ? { categoryId } : {}),
     },
     include: { category: true, wallet: true },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
+
+  const transfers = type === "transfer"
+    ? await prisma.transfer.findMany({
+        where: { userId: user.id },
+        include: { fromWallet: true, toWallet: true },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      })
+    : [];
 
   return (
     <main className="p-4 sm:p-8 max-w-6xl mx-auto">
@@ -42,6 +53,7 @@ export default async function TransactionsPage({
           { label: "すべて", value: "" },
           { label: "収入", value: "income" },
           { label: "支出", value: "expense" },
+          { label: "振替", value: "transfer" },
         ].map((item) => (
           <Link
             key={item.value}
@@ -55,12 +67,110 @@ export default async function TransactionsPage({
           </Link>
         ))}
         </div>
-        <div className="ml-auto mt-2 sm:mt-0 flex-shrink-0">
-          <CategoryFilter categories={categories} />
-        </div>
+        {type !== "transfer" && (
+          <div className="ml-auto mt-2 sm:mt-0 flex-shrink-0">
+            <CategoryFilter categories={categories} />
+          </div>
+        )}
       </div>
 
       <div className="card overflow-hidden">
+        {type === "transfer" ? (
+          // 振替一覧
+          <>
+            {/* Mobile */}
+            <div className="md:hidden">
+              {transfers.length === 0 ? (
+                <p className="text-center py-6 text-sm" style={{ color: "var(--text-muted)" }}>振替がありません</p>
+              ) : (
+                <div className="space-y-2 p-3">
+                  {transfers.map((t) => (
+                    <div key={t.id} className="rounded-xl p-4"
+                      style={{
+                        background: "rgba(99,102,241,0.07)",
+                        border: "0.5px solid rgba(99,102,241,0.25)",
+                      }}>
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <p className="text-sm font-medium flex items-center gap-1">
+                            {t.fromWallet.name}
+                            <ArrowRight size={14} />
+                            {t.toWallet.name}
+                          </p>
+                          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                            {new Date(t.date).toLocaleDateString("ja-JP")}
+                            {t.description ? ` · ${t.description}` : ""}
+                          </p>
+                        </div>
+                        <p className="text-2xl font-semibold" style={{ color: "var(--navy-400)" }}>
+                          <ArrowLeftRight size={24} /> ¥{t.amount.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Link href={`/transactions/${t.id}/transfer_edit`}
+                          className="flex-1 text-center py-2 rounded-lg text-sm font-medium"
+                          style={{ background: "var(--navy-700)", color: "var(--text-secondary)", border: "1px solid var(--navy-600)" }}>
+                          編集
+                        </Link>
+                        <form action={deleteTransfer} className="flex-1">
+                          <input type="hidden" name="id" value={t.id} />
+                          <button type="submit" className="w-full py-2 rounded-lg text-sm font-medium"
+                            style={{ background: "rgba(248,113,113,0.1)", color: "var(--red-400)", border: "1px solid rgba(248,113,113,0.3)" }}>
+                            削除
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop */}
+            <div className="hidden md:block">
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--navy-600)" }}>
+                    {["日付", "送金元", "送金先", "メモ", "金額", "操作"].map((h) => (
+                      <th key={h} className="text-left px-6 py-4 text-xs font-medium" style={{ color: "var(--text-muted)" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {transfers.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-12 text-sm" style={{ color: "var(--text-muted)" }}>振替がありません</td></tr>
+                  ) : (
+                    transfers.map((t) => (
+                      <tr key={t.id} style={{ borderBottom: "1px solid var(--navy-600)" }} className="transition-colors hover:bg-slate-700">
+                        <td className="px-6 py-4 text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {new Date(t.date).toLocaleDateString("ja-JP")}
+                        </td>
+                        <td className="px-6 py-4 text-sm">{t.fromWallet.name}</td>
+                        <td className="px-6 py-4 text-sm">{t.toWallet.name}</td>
+                        <td className="px-6 py-4 text-sm" style={{ color: "var(--text-muted)" }}>{t.description ?? "-"}</td>
+                        <td className="px-6 py-4 text-sm font-semibold"><ArrowLeftRight size={14} />¥{t.amount.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex gap-4 items-center">
+                            <Link href={`/transactions/${t.id}/transfer_edit`} className="flex items-center gap-1 hover:opacity-80" style={{ color: "var(--blue-400)" }}>
+                              <Pencil size={14} />編集
+                            </Link>
+                            <form action={deleteTransfer} className="inline">
+                              <input type="hidden" name="id" value={t.id} />
+                              <button type="submit" className="flex items-center gap-1 hover:opacity-80" style={{ color: "var(--red-400)" }}>
+                                <Trash2 size={14} />削除
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <>
         {/* Mobile list view */}
         <div className="md:hidden">
           {transactions.length === 0 ? (
@@ -89,7 +199,7 @@ export default async function TransactionsPage({
                       className="text-2xl font-semibold"
                       style={{ color: t.type === "income" ? "var(--emerald-400)" : "var(--red-400)" }}
                     >
-                      {t.type === "income" ? "+" : "-"}¥{t.amount.toLocaleString()}
+                      {t.type === "income" ? <TrendingUp size={24} /> : <TrendingDown size={24} />}¥{t.amount.toLocaleString()}
                     </p>
                   </div>
 
@@ -186,6 +296,8 @@ export default async function TransactionsPage({
             </tbody>
           </table>
         </div>
+        </>
+    )}
       </div>
     </main>
   );

@@ -29,6 +29,30 @@ export default async function WalletsPage() {
     walletBalanceMap.set(group.walletId, current + amount * sign);
   });
 
+  const walletIds = wallets.map((w) => w.id);
+
+  const [transfersIn, transfersOut] = await Promise.all([
+    prisma.transfer.groupBy({
+      by: ["toWalletId"],
+      where: { toWalletId: { in: walletIds } },
+      _sum: { amount: true },
+    }),
+    prisma.transfer.groupBy({
+      by: ["fromWalletId"],
+      where: { fromWalletId: { in: walletIds } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  transfersIn.forEach((t) => {
+    const current = walletBalanceMap.get(t.toWalletId) ?? 0;
+    walletBalanceMap.set(t.toWalletId, current + (t._sum.amount ?? 0));
+  });
+  transfersOut.forEach((t) => {
+    const current = walletBalanceMap.get(t.fromWalletId) ?? 0;
+    walletBalanceMap.set(t.fromWalletId, current - (t._sum.amount ?? 0));
+  });
+
   // Check which wallets have transactions (for delete button)
   const walletTransactionCounts = await prisma.transaction.groupBy({
     by: ["walletId"],

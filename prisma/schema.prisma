@@ -37,6 +37,7 @@ model User {
   updatedAt       DateTime          @updatedAt @map("updated_at")
   wallets         Wallet[]
   categories      Category[]
+  transfers      Transfer[]
 }
 
 model Wallet {
@@ -52,6 +53,8 @@ model Wallet {
   subscriptions    Subscription[]
   recurringIncomes RecurringIncome[]
   budgets          Budget[]
+  transfersFrom  Transfer[] @relation("TransferFrom")
+  transfersTo    Transfer[] @relation("TransferTo")
 }
 
 model Transaction {
@@ -121,4 +124,22 @@ model Budget {
   wallet     Wallet   @relation(fields: [walletId], references: [id])
   categoryId String   @map("category_id")
   category   Category @relation(fields: [categoryId], references: [id])
+}
+
+model Transfer {
+  id             String   @id @default(uuid())
+  amount         Int
+  description    String?
+  date           DateTime @default(now())
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  fromWalletId   String   @map("from_wallet_id")
+  fromWallet     Wallet   @relation("TransferFrom", fields: [fromWalletId], references: [id])
+
+  toWalletId     String   @map("to_wallet_id")
+  toWallet       Wallet   @relation("TransferTo", fields: [toWalletId], references: [id])
+
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id])
 }

@@ -101,9 +101,6 @@ export default async function WalletsPage() {
                       <WalletIcon type={w.type} className="h-4 w-4 text-slate-400" />
                       <p className="text-sm font-medium">{w.name}</p>
                     </div>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                      {walletTypeLabel(w.type)} · {transactionCountMap.get(w.id) ?? 0}件の取引
-                    </p>
                   </div>
                   <p className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
                     ¥{Math.abs(balance).toLocaleString()}

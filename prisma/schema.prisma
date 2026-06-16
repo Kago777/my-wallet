@@ -34,6 +34,7 @@ enum ReminderType {
   bill_input
   subscription_review
   reconciliation
+  asset_check
 }
 
 model User {
@@ -85,13 +86,18 @@ model Transaction {
 }
 
 model Category {
-  id               String            @id @default(uuid())
-  name             String
-  type             CategoryType
-  isDefault        Boolean           @default(false) @map("is_default")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  userId           String?           @map("user_id")
-  user             User?             @relation(fields: [userId], references: [id])
+  id          String       @id @default(uuid())
+  name        String
+  type        CategoryType
+  isDefault   Boolean      @default(false) @map("is_default")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  userId      String?      @map("user_id")
+  user        User?        @relation(fields: [userId], references: [id])
+  
+  parentId    String?      @map("parent_id")
+  parent      Category?    @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[]   @relation("CategoryTree")
+
   transactions     Transaction[]
   subscriptions    Subscription[]
   recurringIncomes RecurringIncome[]

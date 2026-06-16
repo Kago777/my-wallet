@@ -6,6 +6,7 @@ const WALLET_TYPES = [
   { value: "cash", label: "現金" },
   { value: "bank", label: "銀行" },
   { value: "credit", label: "クレジット" },
+  { value: "investment", label: "投資" },
 ] as const;
 
 type WalletType = typeof WALLET_TYPES[number]["value"];

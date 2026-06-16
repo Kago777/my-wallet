@@ -8,6 +8,8 @@ type Category = {
   id: string;
   name: string;
   type: CategoryType;
+  parentId: string | null;
+  children?: Category[];
 };
 
 type Wallet = {
@@ -174,20 +176,23 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </div>
         </div>
 
-        {/* ⑥ カテゴリ：振替時に非表示 */}
+          {/* カテゴリ：振替時に非表示 */}
         {mode !== "transfer" && (
           <div>
             <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>カテゴリ</p>
-            <div className="overflow-x-auto pb-2 scrollbar-hidden">
-              {filteredCategories.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  カテゴリがありません
-                </p>
-              ) : (
-                <div className="flex gap-2 min-w-max">
-                  {filteredCategories.map((c) => {
-                    const currentSelectedId = categoryId || getNeutralCategoryId(type);
-                    const isActive = currentSelectedId === c.id;
+
+            {/* 1階層目：親カテゴリのみ */}
+            <div className="overflow-x-auto pb-2 scrollbar-hidden mb-3">
+              <div className="flex gap-2 min-w-max">
+                {filteredCategories
+                  .filter((c) => !c.parentId)
+                  .map((c) => {
+                    const isActive = categoryId === c.id ||
+                      filteredCategories.find(fc => fc.id === categoryId)?.parentId === c.id ||
+                      filteredCategories.find(fc => {
+                        const parent = filteredCategories.find(p => p.id === fc.parentId);
+                        return fc.id === categoryId && parent?.parentId === c.id;
+                      }) !== undefined;
                     return (
                       <button
                         key={c.id}
@@ -205,9 +210,68 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
                       </button>
                     );
                   })}
-                </div>
-              )}
+              </div>
             </div>
+
+            {/* 2階層目：選択中の親の子カテゴリ */}
+            {(() => {
+              const selectedCategory = filteredCategories.find(c => c.id === categoryId);
+              const parentId = selectedCategory?.parentId ?? categoryId;
+              const children = filteredCategories.filter(c => c.parentId === parentId);
+              if (children.length === 0) return null;
+              return (
+                <div className="overflow-x-auto pb-2 scrollbar-hidden mb-3">
+                  <div className="flex gap-2 min-w-max">
+                    {children.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCategoryId(c.id)}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+                        style={{
+                          background: categoryId === c.id
+                            ? type === "expense" ? "var(--red-400)" : "var(--emerald-500)"
+                            : "var(--navy-800)",
+                          color: categoryId === c.id ? "#fff" : "var(--text-secondary)",
+                          border: "1px solid var(--navy-600)",
+                        }}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 3階層目：2階層目の子カテゴリ */}
+            {(() => {
+              const selectedCategory = filteredCategories.find(c => c.id === categoryId);
+              if (!selectedCategory?.parentId) return null;
+              const grandchildren = filteredCategories.filter(c => c.parentId === categoryId);
+              if (grandchildren.length === 0) return null;
+              return (
+                <div className="overflow-x-auto pb-2 scrollbar-hidden">
+                  <div className="flex gap-2 min-w-max">
+                    {grandchildren.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCategoryId(c.id)}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+                        style={{
+                          background: categoryId === c.id
+                            ? type === "expense" ? "var(--red-400)" : "var(--emerald-500)"
+                            : "var(--navy-800)",
+                          color: categoryId === c.id ? "#fff" : "var(--text-muted)",
+                          border: "1px solid var(--navy-700)",
+                        }}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 

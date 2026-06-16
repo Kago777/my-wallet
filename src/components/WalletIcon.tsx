@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDollarSign, Landmark, Wallet } from "lucide-react";
+import { CircleDollarSign, Landmark, Wallet, ChartNoAxesCombined } from "lucide-react";
 import { WalletType } from "@/generated/prisma/client";
 
 export function WalletIcon({
@@ -16,6 +16,9 @@ export function WalletIcon({
   if (type === "bank") {
     return <Landmark className={className} />;
   }
+  if (type === "credit") {
+    return <CircleDollarSign className={className} />;
+  }
 
-  return <CircleDollarSign className={className} />;
+  return <ChartNoAxesCombined className={className} />;
 }

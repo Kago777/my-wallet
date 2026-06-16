@@ -86,3 +86,42 @@ function optionalDescription(formData: FormData): string | null {
   if (typeof value !== "string" || value.trim() === "") return null;
   return value.trim();
 }
+
+export async function createTransactionWithItems(formData: FormData) {
+  const user = await requireAuth();
+
+  const amount      = Number(formData.get("amount"));
+  const categoryId  = formData.get("categoryId") as string;
+  const walletId    = formData.get("walletId")   as string;
+  const date        = new Date(formData.get("date") as string);
+  const description = formData.get("description") as string | null;
+  const itemsJson   = formData.get("items")       as string;
+
+  // ウォレットの所有者確認
+  const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+  if (!wallet || wallet.userId !== user.id) throw new Error("Not found");
+
+  const items = JSON.parse(itemsJson) as { name: string; amount: number }[];
+
+  // TransactionとReceiptItemをアトミックに作成
+  await prisma.$transaction([
+    prisma.transaction.create({
+      data: {
+        amount,
+        type: "expense",
+        categoryId,
+        walletId,
+        date,
+        description,
+        receiptItems: {
+          create: items.map((item) => ({
+            name: item.name,
+            amount: item.amount,
+          })),
+        },
+      },
+    }),
+  ]);
+
+  redirect("/");
+}

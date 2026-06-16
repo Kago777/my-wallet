@@ -83,6 +83,7 @@ model Transaction {
   subscription     Subscription?    @relation(fields: [subscriptionId], references: [id])
   recurringBillId  String?          @map("recurring_bill_id")
   recurringBill    RecurringBill?   @relation(fields: [recurringBillId], references: [id])
+  receiptItems  ReceiptItem[]
 }
 
 model Category {
@@ -195,4 +196,13 @@ model Transfer {
 
   userId         String   @map("user_id")
   user           User     @relation(fields: [userId], references: [id])
+}
+
+model ReceiptItem {
+  id            String      @id @default(uuid())
+  name          String
+  amount        Int
+  createdAt     DateTime    @default(now()) @map("created_at")
+  transactionId String      @map("transaction_id")
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }

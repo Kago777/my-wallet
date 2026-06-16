@@ -160,12 +160,28 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           data={receiptData}
           walletId={walletId}
           categoryId={categoryId}
-          onConfirm={async (confirmed) => {
-            setReceiptData(confirmed);
-            setAmount(String(confirmed.total));
-            if (confirmed.date) setDate(confirmed.date);
-            setReceiptPhase("none");
-          }}
+         onConfirm={async (confirmed) => {
+          console.log("onConfirm受け取り:", confirmed);
+              setLoading(true);
+
+              const formData = new FormData();
+              formData.append("amount", String(confirmed.total));
+              formData.append("categoryId", categoryId || getNeutralCategoryId(type));
+              formData.append("walletId", walletId);
+              formData.append("date", confirmed.date ?? date);
+              formData.append("description", confirmed.store ?? "");
+              formData.append("items", JSON.stringify(confirmed.items));
+              console.log("formData作成完了");
+
+              try {
+                const { createTransactionWithItems } = await import("@/app/actions/transaction");
+                console.log("import完了");
+                await createTransactionWithItems(formData);
+                console.log("createTransactionWithItems完了");
+              } catch (err) {
+                console.error("createTransactionWithItemsエラー:", err);
+              }
+            }}
           onRetake={() => setReceiptPhase("camera")}
         />
       )}

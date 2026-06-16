@@ -94,7 +94,6 @@ ${ocrText}
     return NextResponse.json(parsed);
 
   } catch (err) {
-    console.error("OCR error:", err);
     return NextResponse.json({ error: "サーバーエラーが発生しました" }, { status: 500 });
   }
 }

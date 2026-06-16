@@ -59,10 +59,18 @@ export default function ReceiptConfirm({
     setItems((prev) => [...prev, { name: "", amount: 0 }]);
   };
 
-  const handleConfirm = async () => {
-    setLoading(true);
+ const handleConfirm = async () => {
+  setLoading(true);
+  console.log("handleConfirm呼ばれた");
+  console.log("items:", items);
+  console.log("total:", total);
+  try {
     await onConfirm({ store: store || null, date, items, total });
-  };
+    console.log("onConfirm完了");
+  } catch (err) {
+    console.error("onConfirmエラー:", err);
+  }
+};
 
   return (
     <div className="card p-6 space-y-6">

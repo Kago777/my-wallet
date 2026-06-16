@@ -37,6 +37,29 @@ export default async function Home({
     const sign = group.type === "income" ? 1 : -1;
     walletBalanceMap.set(group.walletId, current + amount * sign);
   });
+  const walletIds = wallets.map((w) => w.id);
+
+  const [transfersIn, transfersOut] = await Promise.all([
+    prisma.transfer.groupBy({
+      by: ["toWalletId"],
+      where: { toWalletId: { in: walletIds } },
+      _sum: { amount: true },
+    }),
+    prisma.transfer.groupBy({
+      by: ["fromWalletId"],
+      where: { fromWalletId: { in: walletIds } },
+      _sum: { amount: true },
+    }),
+  ]);
+
+transfersIn.forEach((t) => {
+  const current = walletBalanceMap.get(t.toWalletId) ?? 0;
+  walletBalanceMap.set(t.toWalletId, current + (t._sum.amount ?? 0));
+});
+transfersOut.forEach((t) => {
+  const current = walletBalanceMap.get(t.fromWalletId) ?? 0;
+  walletBalanceMap.set(t.fromWalletId, current - (t._sum.amount ?? 0));
+});
 
   const walletShareData = wallets
     .map((w) => ({
@@ -48,7 +71,7 @@ export default async function Home({
   const transactions = await prisma.transaction.findMany({
     where: walletFilter,
     include: { category: true },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: 5,
   });
 
@@ -62,7 +85,21 @@ export default async function Home({
     _sum: { amount: true },
   });
 
-  const balance = (totalIncome._sum.amount ?? 0) - (totalExpense._sum.amount ?? 0);
+  let balance = (totalIncome._sum.amount ?? 0) - (totalExpense._sum.amount ?? 0);
+
+  if (walletId) {
+    const [transferIn, transferOut] = await Promise.all([
+      prisma.transfer.aggregate({
+        where: { toWalletId: walletId },
+        _sum: { amount: true },
+      }),
+      prisma.transfer.aggregate({
+        where: { fromWalletId: walletId },
+        _sum: { amount: true },
+      }),
+    ]);
+    balance += (transferIn._sum.amount ?? 0) - (transferOut._sum.amount ?? 0);
+  }
 
   const expenseByCategory = await prisma.transaction.groupBy({
     by: ["categoryId"],

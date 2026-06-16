@@ -23,7 +23,7 @@ export default async function TransactionsPage({
       ...(categoryId ? { categoryId } : {}),
     },
     include: { category: true, wallet: true },
-    orderBy: { date: "desc" },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
 
   return (

@@ -16,6 +16,13 @@ function parseTransactionType(value: string): TransactionType {
   throw new Error("Invalid transaction type");
 }
 
+async function assertCreditWalletExpenseOnly(walletId: string, type: TransactionType) {
+  const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+  if (wallet?.type === "credit" && type === "income") {
+    throw new Error("クレジットカード口座に収入は記録できません");
+  }
+}
+
 export async function createTransaction(formData: FormData) {
   const user = await requireAuth();
 
@@ -27,6 +34,7 @@ export async function createTransaction(formData: FormData) {
   const date = requireString(formData, "date");
 
   await assertWalletOwnership(walletId, user.id);
+  await assertCreditWalletExpenseOnly(walletId, type);
 
   await prisma.transaction.create({
     data: {
@@ -55,6 +63,7 @@ export async function updateTransaction(formData: FormData) {
 
   await assertTransactionOwnership(id, user.id);
   await assertWalletOwnership(walletId, user.id);
+  await assertCreditWalletExpenseOnly(walletId, type);
 
   await prisma.transaction.update({
     where: { id },
@@ -98,6 +107,7 @@ export async function createReceiptTransactions(formData: FormData) {
   const splitItemsJson = requireString(formData, "splitItems");
 
   await assertWalletOwnership(walletId, user.id);
+  await assertCreditWalletExpenseOnly(walletId, "expense");
 
   const mainItems = JSON.parse(mainItemsJson) as { name: string; amount: number }[];
   const splitItems = JSON.parse(splitItemsJson) as { name: string; amount: number; categoryId: string }[];

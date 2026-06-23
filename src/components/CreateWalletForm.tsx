@@ -1,8 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { WalletTypeSelector } from "@/components/WalletTypeSelector";
+import { CreditCardSettingForm } from "@/components/CreditCardSettingForm";
+import { WalletType } from "@/generated/prisma/client";
 
-export function CreateWalletForm({ action }: { action: (fd: FormData) => Promise<void> }) {
+type BankWallet = {
+  id: string;
+  name: string;
+};
+
+export function CreateWalletForm({
+  action,
+  bankWallets,
+}: {
+  action: (fd: FormData) => Promise<void>;
+  bankWallets: BankWallet[];
+}) {
+  const [walletType, setWalletType] = useState<WalletType>("cash");
+
   return (
     <form action={action} className="space-y-4">
       <input
@@ -13,10 +29,18 @@ export function CreateWalletForm({ action }: { action: (fd: FormData) => Promise
         required
       />
 
-      <WalletTypeSelector name="type" defaultValue="cash" />
+      <WalletTypeSelector name="type" defaultValue="cash" onChange={setWalletType} />
+
+      {walletType === "credit" && (
+        <CreditCardSettingForm bankWallets={bankWallets} />
+      )}
 
       <div className="flex justify-end">
-        <button type="submit" className="btn-primary px-6 py-3">
+        <button
+          type="submit"
+          className="btn-primary px-6 py-3"
+          disabled={walletType === "credit" && bankWallets.length === 0}
+        >
           追加
         </button>
       </div>

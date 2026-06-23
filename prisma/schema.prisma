@@ -63,8 +63,21 @@ model Wallet {
   recurringIncomes RecurringIncome[]
   recurringBills   RecurringBill[]
   budgets          Budget[]
-  transfersFrom  Transfer[] @relation("TransferFrom")
-  transfersTo    Transfer[] @relation("TransferTo")
+  transfersFrom      Transfer[]           @relation("TransferFrom")
+  transfersTo        Transfer[]           @relation("TransferTo")
+  creditCardSetting  CreditCardSetting? @relation("CreditCardWallet")
+  settlementFor      CreditCardSetting[] @relation("SettlementWallet")
+}
+
+model CreditCardSetting {
+  id                 String @id @default(uuid())
+  billingDay         Int    @map("billing_day")
+  closingDay         Int?   @map("closing_day")
+  billingMonthOffset Int    @default(1) @map("billing_month_offset")
+  walletId           String @unique @map("wallet_id")
+  wallet             Wallet @relation("CreditCardWallet", fields: [walletId], references: [id], onDelete: Cascade)
+  settlementWalletId String @map("settlement_wallet_id")
+  settlementWallet   Wallet @relation("SettlementWallet", fields: [settlementWalletId], references: [id])
 }
 
 model Transaction {

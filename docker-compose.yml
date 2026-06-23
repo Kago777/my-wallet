@@ -14,6 +14,7 @@ services:
     build: .
     ports:
       - "3000:3000"
+      - "51212:51212"
     env_file:
       - .env.local
     environment:

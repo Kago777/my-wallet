@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Trash2, Plus, RefreshCw } from "lucide-react";
 import { CategoryType, WalletType } from "@/generated/prisma/client";
 
@@ -131,6 +131,39 @@ type Props = {
   initialWalletId?: string;             // 編集時の初期財布
 };
 
+// #region agent log
+function DateInputDebug() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [info, setInfo] = useState<Record<string, string | number> | null>(null);
+  useEffect(() => {
+    const inp = inputRef.current;
+    const wrap = wrapperRef.current;
+    if (!inp || !wrap) return;
+    setInfo({
+      inp_offset: inp.offsetWidth,
+      inp_scroll: inp.scrollWidth,
+      wrap_offset: wrap.offsetWidth,
+      boxSizing: getComputedStyle(inp).boxSizing,
+      minWidth: getComputedStyle(inp).minWidth,
+      paddingL: getComputedStyle(inp).paddingLeft,
+      paddingR: getComputedStyle(inp).paddingRight,
+      bodyW: document.body.offsetWidth,
+    });
+  }, []);
+  return (
+    <div ref={wrapperRef}>
+      <input ref={inputRef} type="date" style={{ visibility: 'hidden', position: 'absolute', pointerEvents: 'none' }} className="input w-full" readOnly />
+      {info && (
+        <pre style={{ fontSize: 9, color: 'lime', background: '#000', padding: 4, wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginBottom: 4 }}>
+          {JSON.stringify(info, null, 1)}
+        </pre>
+      )}
+    </div>
+  );
+}
+// #endregion
+
 export default function ReceiptEditForm({
   initialData,
   categories,
@@ -260,6 +293,9 @@ export default function ReceiptEditForm({
       {/* 日付 */}
       <div>
         <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>日付</p>
+        {/* #region agent log */}
+        <DateInputDebug />
+        {/* #endregion */}
         <input
           type="date"
           value={date}

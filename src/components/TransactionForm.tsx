@@ -68,6 +68,9 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
   const [description, setDescription] = useState(defaultValues?.description ?? "");
   const [loading, setLoading] = useState(false);
 
+  const selectedWallet = wallets.find((w) => w.id === walletId);
+  const isCreditWallet = selectedWallet?.type === "credit" && mode !== "transfer";
+
   const filteredCategories = categories.filter((c) => c.type === type);
 
   // ④ handleSubmitにtransfer分岐を追加
@@ -115,7 +118,33 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
     <div className="card p-8">
       <form onSubmit={handleSubmit} className="space-y-6">
 
-        {/* ⑤ タブ：grid-cols-3に変更、振替ボタン追加、アクティブ判定をmodeに変更 */}
+        {isCreditWallet ? (
+          <>
+            <div className="rounded-lg overflow-hidden"
+              style={{ border: "1px solid var(--navy-600)" }}>
+              <div
+                className="py-3 text-sm font-semibold text-center"
+                style={{ background: "var(--red-400)", color: "#fff" }}
+              >
+                支出（クレジットカード）
+              </div>
+            </div>
+            {!isEdit && (
+              <button
+                type="button"
+                onClick={() => setMode("transfer")}
+                className="w-full py-2 rounded-lg text-xs"
+                style={{
+                  background: mode === "transfer" ? "var(--navy-400)" : "var(--navy-800)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--navy-600)",
+                }}
+              >
+                振替に切り替え
+              </button>
+            )}
+          </>
+        ) : (
         <div className={`grid ${isEdit ? "grid-cols-2" : "grid-cols-3"} rounded-lg overflow-hidden`}
           style={{ border: "1px solid var(--navy-600)" }}>
           <button
@@ -159,6 +188,7 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             </button>
           )}
         </div>
+        )}
         {/* レシート読み取りボタン（新規作成・収支モード時のみ） */}
         {!isEdit && mode !== "transfer" && (
           <Link
@@ -321,7 +351,20 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>財布</p>
-              <select value={walletId} onChange={(e) => setWalletId(e.target.value)} className="select">
+              <select
+                value={walletId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setWalletId(nextId);
+                  const nextWallet = wallets.find((w) => w.id === nextId);
+                  if (nextWallet?.type === "credit") {
+                    setMode("expense");
+                    setType("expense");
+                    setCategoryId(getNeutralCategoryId("expense"));
+                  }
+                }}
+                className="select"
+              >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>{w.name}</option>
                 ))}

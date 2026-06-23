@@ -14,6 +14,10 @@ export default async function WalletsPage() {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
+  const bankWallets = wallets
+    .filter((w) => w.type === "bank")
+    .map((w) => ({ id: w.id, name: w.name }));
+
   // Calculate wallet balances
   const walletBalanceGroups = await prisma.transaction.groupBy({
     by: ["walletId", "type"],
@@ -73,7 +77,7 @@ export default async function WalletsPage() {
         <h2 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
           財布を追加
         </h2>
-        <CreateWalletForm action={createWallet} />
+        <CreateWalletForm action={createWallet} bankWallets={bankWallets} />
       </div>
 
       <div className="space-y-2">

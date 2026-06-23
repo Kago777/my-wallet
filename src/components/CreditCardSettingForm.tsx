@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 type BankWallet = {
   id: string;
@@ -18,6 +19,9 @@ type Props = {
 };
 
 export function CreditCardSettingForm({ bankWallets, defaultValues }: Props) {
+  const [billingMonthOffset, setBillingMonthOffset] = useState(
+    defaultValues?.billingMonthOffset ?? 1
+  );
   return (
     <div
       className="space-y-4 rounded-xl p-4"
@@ -89,44 +93,26 @@ export function CreditCardSettingForm({ bankWallets, defaultValues }: Props) {
           引き落としタイミング
         </p>
         <div className="flex gap-2">
-          <label
-            className="flex-1 text-center py-2 rounded-lg text-sm cursor-pointer"
-            style={{
-              background:
-                (defaultValues?.billingMonthOffset ?? 1) === 1
-                  ? "var(--navy-400)"
-                  : "var(--navy-800)",
-              border: "1px solid var(--navy-600)",
-            }}
-          >
-            <input
-              type="radio"
-              name="billingMonthOffset"
-              value="1"
-              defaultChecked={(defaultValues?.billingMonthOffset ?? 1) === 1}
-              className="sr-only"
-            />
-            翌月引き落とし
-          </label>
-          <label
-            className="flex-1 text-center py-2 rounded-lg text-sm cursor-pointer"
-            style={{
-              background:
-                defaultValues?.billingMonthOffset === 2
-                  ? "var(--navy-400)"
-                  : "var(--navy-800)",
-              border: "1px solid var(--navy-600)",
-            }}
-          >
-            <input
-              type="radio"
-              name="billingMonthOffset"
-              value="2"
-              defaultChecked={defaultValues?.billingMonthOffset === 2}
-              className="sr-only"
-            />
-            翌々月引き落とし
-          </label>
+          {[1, 2].map((offset) => (
+            <label
+              key={offset}
+              className="flex-1 text-center py-2 rounded-lg text-sm cursor-pointer"
+              style={{
+                background: billingMonthOffset === offset ? "var(--navy-800)" : "var(--navy-400)",
+                border: "1px solid var(--navy-600)",
+              }}
+            >
+              <input
+                type="radio"
+                name="billingMonthOffset"
+                value={String(offset)}
+                checked={billingMonthOffset === offset}
+                onChange={() => setBillingMonthOffset(offset)}
+                className="sr-only"
+              />
+              {offset === 1 ? "翌月引き落とし" : "翌々月引き落とし"}
+            </label>
+          ))}
         </div>
       </div>
     </div>

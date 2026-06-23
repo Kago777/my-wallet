@@ -12,6 +12,8 @@ type ReceiptData = {
   store: string | null;
   date: string | null;
   items: { name: string; amount: number }[];
+  subtotal?: number | null;
+  tax?: number | null;
   total: number;
 };
 

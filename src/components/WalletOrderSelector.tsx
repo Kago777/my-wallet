@@ -106,10 +106,10 @@ export default function WalletOrderSelector({
             className={`flex flex-shrink-0 items-center gap-2 rounded-full border px-3 py-2 bg-slate-950/10 transition ${
               draggingId === wallet.id ? "opacity-75 border-blue-400" : "border-transparent"
             }`}>
-            <WalletIcon type={wallet.type} className="h-4 w-4 text-emerald-400" />
             <Link
               href={`/?walletId=${wallet.id}`}
-              className={`text-sm ${selectedWalletId === wallet.id ? "font-semibold text-blue-500" : "text-slate-100"}`}>
+              className={`flex items-center gap-1 text-sm ${selectedWalletId === wallet.id ? "font-semibold text-blue-500" : "text-slate-100"}`}>
+              <WalletIcon type={wallet.type} className="h-4 w-4 text-emerald-400" />
               {wallet.name}
             </Link>
           </div>

@@ -4,7 +4,105 @@ import { useState, useCallback } from "react";
 import { Trash2, Plus, RefreshCw } from "lucide-react";
 import { CategoryType, WalletType } from "@/generated/prisma/client";
 
-type Category = { id: string; name: string; type: CategoryType };
+type Category = { id: string; name: string; type: CategoryType; parentId?: string | null };
+
+function CategoryPicker({
+  categories,
+  selectedId,
+  onChange,
+}: {
+  categories: Category[];
+  selectedId: string;
+  onChange: (id: string) => void;
+}) {
+  const isParentActive = (parentId: string) =>
+    selectedId === parentId ||
+    categories.find((c) => c.id === selectedId)?.parentId === parentId ||
+    categories.find((c) => {
+      const parent = categories.find((p) => p.id === c.parentId);
+      return c.id === selectedId && parent?.parentId === parentId;
+    }) !== undefined;
+
+  const selectedCategory = categories.find((c) => c.id === selectedId);
+  const level2ParentId = selectedCategory?.parentId ?? selectedId;
+  const level2 = categories.filter((c) => c.parentId === level2ParentId);
+  const level3 = selectedCategory?.parentId
+    ? categories.filter((c) => c.parentId === selectedId)
+    : [];
+
+  return (
+    <div>
+      {/* 1階層目 */}
+      <div className="overflow-x-auto pb-2 scrollbar-hidden mb-3">
+        <div className="flex gap-2 min-w-max">
+          {categories
+            .filter((c) => !c.parentId)
+            .map((c) => {
+              const active = isParentActive(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onChange(c.id)}
+                  className="flex-shrink-0 px-4 py-2 rounded-full text-sm transition-colors whitespace-nowrap"
+                  style={{
+                    background: active ? "var(--red-400)" : "var(--navy-700)",
+                    color: active ? "#fff" : "var(--text-secondary)",
+                    border: "1px solid var(--navy-600)",
+                  }}>
+                  {c.name}
+                </button>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* 2階層目 */}
+      {level2.length > 0 && (
+        <div className="overflow-x-auto pb-2 scrollbar-hidden mb-3">
+          <div className="flex gap-2 min-w-max">
+            {level2.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onChange(c.id)}
+                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+                style={{
+                  background: selectedId === c.id ? "var(--red-400)" : "var(--navy-800)",
+                  color: selectedId === c.id ? "#fff" : "var(--text-secondary)",
+                  border: "1px solid var(--navy-600)",
+                }}>
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 3階層目 */}
+      {level3.length > 0 && (
+        <div className="overflow-x-auto pb-2 scrollbar-hidden">
+          <div className="flex gap-2 min-w-max">
+            {level3.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onChange(c.id)}
+                className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
+                style={{
+                  background: selectedId === c.id ? "var(--red-400)" : "var(--navy-800)",
+                  color: selectedId === c.id ? "#fff" : "var(--text-muted)",
+                  border: "1px solid var(--navy-700)",
+                }}>
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 type Wallet   = { id: string; name: string; type: WalletType };
 
 type ReceiptItem = {
@@ -18,6 +116,8 @@ type ReceiptData = {
   store: string | null;
   date: string | null;
   items: { name: string; amount: number }[];
+  subtotal?: number | null;
+  tax?: number | null;
   total: number;
 };
 
@@ -50,13 +150,17 @@ export default function ReceiptEditForm({
   const [date, setDate]     = useState(
     initialData.date ?? new Date().toISOString().split("T")[0]
   );
-  const [items, setItems]   = useState<ReceiptItem[]>(
-    initialData.items.map((item) => ({
+  const [items, setItems]   = useState<ReceiptItem[]>(() => {
+    const base = initialData.items.map((item) => ({
       ...item,
       split: false,
       splitCategoryId: getNeutralCategoryId(),
-    }))
-  );
+    }));
+    if (initialData.tax && initialData.tax > 0) {
+      base.push({ name: "消費税", amount: initialData.tax, split: false, splitCategoryId: getNeutralCategoryId() });
+    }
+    return base;
+  });
   const [mainCategoryId, setMainCategoryId] = useState(initialCategoryId ?? getNeutralCategoryId());
   const [walletId, setWalletId]             = useState(initialWalletId ?? wallets[0]?.id ?? "");
   const [loading, setLoading]               = useState(false);
@@ -225,27 +329,11 @@ export default function ReceiptEditForm({
               {item.split && (
                 <div>
                   <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>カテゴリ</p>
-                  <div className="overflow-x-auto pb-1 scrollbar-hidden">
-                    <div className="flex gap-2 min-w-max">
-                      {expenseCategories.map((c) => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => updateItem(index, "splitCategoryId", c.id)}
-                          className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors whitespace-nowrap"
-                          style={{
-                            background: item.splitCategoryId === c.id
-                              ? "var(--red-400)"
-                              : "var(--navy-800)",
-                            color: item.splitCategoryId === c.id ? "#fff" : "var(--text-secondary)",
-                            border: "1px solid var(--navy-600)",
-                          }}
-                        >
-                          {c.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <CategoryPicker
+                    categories={expenseCategories}
+                    selectedId={item.splitCategoryId}
+                    onChange={(id) => updateItem(index, "splitCategoryId", id)}
+                  />
                 </div>
               )}
 
@@ -294,25 +382,11 @@ export default function ReceiptEditForm({
       {/* メインカテゴリ */}
       <div>
         <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>カテゴリ</p>
-        <div className="overflow-x-auto pb-2 scrollbar-hidden">
-          <div className="flex gap-2 min-w-max">
-            {expenseCategories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setMainCategoryId(c.id)}
-                className="flex-shrink-0 px-4 py-2 rounded-full text-sm transition-colors whitespace-nowrap"
-                style={{
-                  background: mainCategoryId === c.id ? "var(--red-400)" : "var(--navy-700)",
-                  color: mainCategoryId === c.id ? "#fff" : "var(--text-secondary)",
-                  border: "1px solid var(--navy-600)",
-                }}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        <CategoryPicker
+          categories={expenseCategories}
+          selectedId={mainCategoryId}
+          onChange={setMainCategoryId}
+        />
       </div>
 
       {/* 財布 */}

@@ -33,7 +33,8 @@ type Props = {
   };
 };
 
-// ① TransactionTypeに"transfer"を加えたFormMode型を定義
+// TransactionForm = expense or income
+// 入力フォームのモードを指定するFormMode型を定義
 type FormMode = TransactionType | "transfer";
 
 export default function TransactionForm({ categories, wallets, defaultValues }: Props) {
@@ -69,7 +70,7 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
   const [loading, setLoading] = useState(false);
 
   const selectedWallet = wallets.find((w) => w.id === walletId);
-  const isCreditWallet = selectedWallet?.type === "credit" && mode !== "transfer";
+  const isCredit = selectedWallet?.type === "credit";
 
   const filteredCategories = categories.filter((c) => c.type === type);
 
@@ -117,34 +118,7 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
   return (
     <div className="card p-8">
       <form onSubmit={handleSubmit} className="space-y-6">
-
-        {isCreditWallet ? (
-          <>
-            <div className="rounded-lg overflow-hidden"
-              style={{ border: "1px solid var(--navy-600)" }}>
-              <div
-                className="py-3 text-sm font-semibold text-center"
-                style={{ background: "var(--red-400)", color: "#fff" }}
-              >
-                支出（クレジットカード）
-              </div>
-            </div>
-            {!isEdit && (
-              <button
-                type="button"
-                onClick={() => setMode("transfer")}
-                className="w-full py-2 rounded-lg text-xs"
-                style={{
-                  background: mode === "transfer" ? "var(--navy-400)" : "var(--navy-800)",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--navy-600)",
-                }}
-              >
-                振替に切り替え
-              </button>
-            )}
-          </>
-        ) : (
+        {/* 財布セレクター：クレジットはexpenseのみ */}
         <div className={`grid ${isEdit ? "grid-cols-2" : "grid-cols-3"} rounded-lg overflow-hidden`}
           style={{ border: "1px solid var(--navy-600)" }}>
           <button
@@ -168,10 +142,12 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
               setType("income");
               setCategoryId(getNeutralCategoryId("income"));
             }}
+            disabled={isCredit}
             className="py-3 text-sm font-semibold transition-colors"
             style={{
               background: mode === "income" ? "var(--emerald-500)" : "var(--navy-700)",
               color: mode === "income" ? "#fff" : "var(--text-muted)",
+              opacity: isCredit ? 0.3 : 1,
             }}>
             収入
           </button>
@@ -188,7 +164,6 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
             </button>
           )}
         </div>
-        )}
         {/* レシート読み取りボタン（新規作成・収支モード時のみ） */}
         {!isEdit && mode !== "transfer" && (
           <Link
@@ -349,27 +324,30 @@ export default function TransactionForm({ categories, wallets, defaultValues }: 
           </>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>財布</p>
-              <select
-                value={walletId}
-                onChange={(e) => {
-                  const nextId = e.target.value;
-                  setWalletId(nextId);
-                  const nextWallet = wallets.find((w) => w.id === nextId);
-                  if (nextWallet?.type === "credit") {
-                    setMode("expense");
-                    setType("expense");
-                    setCategoryId(getNeutralCategoryId("expense"));
-                  }
-                }}
-                className="select"
-              >
-                {wallets.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
+            {(!isCredit || mode === "expense") && (
+              <div>
+                <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>財布</p>
+                <select
+                  value={walletId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setWalletId(nextId);
+                    const nextWallet = wallets.find((w) => w.id === nextId);
+                    if (nextWallet?.type === "credit") {
+                      setMode("expense");
+                      setType("expense");
+                      setCategoryId(getNeutralCategoryId("expense"));
+                    }
+                  }}
+                  className="select"
+                >
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>日付</p>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)}

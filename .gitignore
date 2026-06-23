@@ -47,3 +47,5 @@ dev.db
 
 # buckup
 wallet_db_backup.sql
+
+.vscode

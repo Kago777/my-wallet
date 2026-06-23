@@ -136,7 +136,7 @@ export default async function Home({
     <main className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="flex flex-col gap-4 mb-8 lg:flex-row lg:items-center lg:justify-between">
         <WalletOrderSelector wallets={wallets} selectedWalletId={walletId} />
-        <Link href="/transactions/new" className="btn-primary flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2">
+        <Link href="/transactions/new" className="btn-primary flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 whitespace-nowrap shrink-0">
           <Plus size={16} />
           収支を追加
         </Link>

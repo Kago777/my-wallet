@@ -58,33 +58,9 @@ export default async function TransactionsPage({
         </Link>
       </div>
 
-      {/* ── タブフィルター ── */}
-      <div className="flex items-center gap-3 sm:flex-row sm:items-center mb-6">
-        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hidden flex-nowrap w-full sm:w-auto">
-          {[
-            { label: "すべて", value: "" },
-            { label: "収入", value: "income" },
-            { label: "支出", value: "expense" },
-            { label: "振替", value: "transfer" },
-          ].map((item) => (
-            <Link
-              key={item.value}
-              href={item.value ? `/transactions?type=${item.value}` : "/transactions"}
-              className={`btn-filter flex-shrink-0 ${
-                type === item.value || (!type && !item.value)
-                  ? "btn-filter-active"
-                  : "btn-filter-inactive"
-              }`}>
-              {item.label}
-            </Link>
-          ))}
-        </div>
-        {/* カテゴリフィルターは振替タブ以外で表示 */}
-        {type !== "transfer" && (
-          <div className="ml-auto mt-2 sm:mt-0 flex-shrink-0">
-            <CategoryFilter categories={categories} />
-          </div>
-        )}
+      {/* ── カテゴリフィルター ── */}
+      <div className="mb-6">
+        <CategoryFilter categories={categories} />
       </div>
 
       <div className="card overflow-hidden">

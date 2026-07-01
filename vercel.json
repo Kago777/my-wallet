@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/subscription",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/credit-settlement",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/reminder",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}

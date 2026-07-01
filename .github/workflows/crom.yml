@@ -1,0 +1,14 @@
+name: Credit Settlement Cron
+on:
+  schedule:
+    - cron: '0 0 * * *'  # UTC 0:00 = 日本時間 9:00
+  workflow_dispatch:  # 手動実行もできるようにしておく
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call settlement endpoint
+        run: |
+          curl -X POST https://your-app.up.railway.app/api/cron/credit-settlement \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
